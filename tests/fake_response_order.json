@@ -1,0 +1,123 @@
+{
+  "result": {
+    "postings": [
+      {
+        "posting_number": "23713478-0018-3",
+        "order_id": 559293114,
+        "order_number": "33713378-0051",
+        "pickup_code_verified_at": "2025-01-17T11:03:00.124Z",
+        "status": "awaiting_packaging",
+        "delivery_method": {
+          "id": 15110442724000,
+          "name": "Ozon Логистика курьеру, Москва",
+          "warehouse_id": 15110442724000,
+          "warehouse": "Склад на Ленина",
+          "tpl_provider_id": 24,
+          "tpl_provider": "Ozon Логистика"
+        },
+        "tracking_number": "",
+        "tpl_integration_type": "ozon",
+        "in_process_at": "2021-08-25T10:48:38Z",
+        "shipment_date": "2021-08-26T10:00:00Z",
+        "shipment_date_without_delay": "2021-08-26T10:00:00Z",
+        "delivering_date": null,
+        "optional": {
+          "products_with_possible_mandatory_mark": [
+            0
+          ]
+        },
+        "cancellation": {
+          "cancel_reason_id": 0,
+          "cancel_reason": "",
+          "cancellation_type": "",
+          "cancelled_after_ship": false,
+          "affect_cancellation_rating": false,
+          "cancellation_initiator": ""
+        },
+        "customer": null,
+        "quantum_id": 0,
+        "products": [
+          {
+            "price": "1259",
+            "currency_code": "RUB",
+            "is_blr_traceable": true,
+            "is_marketplace_buyout": true,
+            "offer_id": "УТ-0001365",
+            "name": "Мяч, цвет: черный, 5 кг",
+            "sku": 140048123,
+            "quantity": 1,
+            "products_requiring_jw_uin": "0",
+            "imei": []
+          }
+        ],
+        "addressee": null,
+        "barcodes": {
+          "upper_barcode": "%101%806044518",
+          "lower_barcode": "23024930500000"
+        },
+        "analytics_data": {
+          "region": "Санкт-Петербург",
+          "city": "Санкт-Петербург",
+          "delivery_type": "PVZ",
+          "is_premium": false,
+          "payment_type_group_name": "Карты оплаты",
+          "warehouse_id": 15110442724000,
+          "warehouse": "Склад на Ленина",
+          "tpl_provider_id": 24,
+          "tpl_provider": "Ozon Логистика",
+          "delivery_date_begin": "2022-08-28T14:00:00Z",
+          "delivery_date_end": "2022-08-28T18:00:00Z",
+          "is_legal": false,
+          "client_delivery_date_begin": "2025-11-24T13:32:40.336Z",
+          "client_delivery_date_end": "2025-11-24T13:32:40.336Z"
+        },
+        "financial_data": {
+          "products": [
+            {
+              "commission_amount": 0,
+              "commission_percent": 0,
+              "payout": 0,
+              "product_id": 140048123,
+              "old_price": 1888,
+              "price": 1259,
+              "total_discount_value": 629,
+              "total_discount_percent": 33.32,
+              "actions": [
+                "Системная виртуальная скидка селлера"
+              ],
+              "quantity": 1
+            }
+          ]
+        },
+        "is_express": false,
+        "legal_info": {
+          "company_name": "string",
+          "inn": "string",
+          "kpp": "string"
+        },
+        "require_blr_traceable_attrs": true,
+        "requirements": {
+          "products_requiring_change_country": [],
+          "products_requiring_gtd": [],
+          "products_requiring_country": [],
+          "products_requiring_jwn": [],
+          "products_requiring_imei": []
+        },
+        "tariffication": [
+          {
+            "current_tariff_rate": 0,
+            "current_tariff_type": "",
+            "current_tariff_charge": "",
+            "current_tariff_charge_currency_code": "",
+            "next_tariff_rate": 0,
+            "next_tariff_type": "",
+            "next_tariff_charge": "",
+            "next_tariff_starts_at": "2023-11-13T08:05:57.657Z",
+            "next_tariff_charge_currency_code": ""
+          }
+        ]
+      }
+    ],
+    "count": 55
+  }
+}

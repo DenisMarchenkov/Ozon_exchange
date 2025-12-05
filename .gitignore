@@ -1,0 +1,21 @@
+# Виртуальное окружение
+venv/
+.env
+
+# Папки и файлы, генерыруемые IDE
+.idea/
+*.pyc
+__pycache__/
+.vscode/
+
+# Файлы окружения Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Другие игнорируемые файлы
+Supplier_prices/
+Logs/
+*.log
