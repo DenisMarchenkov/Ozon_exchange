@@ -63,7 +63,7 @@ def save_to_dbf(
             )
             table.append(record)
 
-        logger.info(f"DBF сохранён: {filename}")
+        logger.info(f"DBF сохранён: {posting_number}")
 
     finally:
         try:

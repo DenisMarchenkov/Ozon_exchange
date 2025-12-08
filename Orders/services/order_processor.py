@@ -3,7 +3,7 @@ import os
 from Orders.dbf_tools.dbf_writer import save_to_dbf
 from Common.settings import ORDER_DIR, CUSTOMER_ID_IN_SUPPLIER_CRM, DIVISION_ID_IN_SUPPLIER_CRM, SHOP_NAME
 from Common.logger import get_logger
-from Common.db import get_order_status, create_order, update_order_status
+from Orders.services.db_orders import get_order_status, create_order, update_order_status
 
 logger = get_logger("Orders")
 
