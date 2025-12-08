@@ -18,4 +18,5 @@ Desktop.ini
 # Другие игнорируемые файлы
 Supplier_prices/
 Logs/
+Data/
 *.log

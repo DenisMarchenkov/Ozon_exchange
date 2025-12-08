@@ -1,13 +1,16 @@
 import os
 
-from typing import Dict, Any
 from Orders.dbf_tools.dbf_writer import save_to_dbf
 from Common.settings import ORDER_DIR, CUSTOMER_ID_IN_SUPPLIER_CRM, DIVISION_ID_IN_SUPPLIER_CRM, SHOP_NAME
 from Common.logger import get_logger
+from Common.db import get_order_status, create_order, update_order_status
+
 logger = get_logger("Orders")
 
-def save_to_files_server_response(resp: Dict[str, Any]) -> None:
+
+def save_to_files_server_response(resp):
     os.makedirs(ORDER_DIR, exist_ok=True)
+
     if not resp or 'result' not in resp or 'postings' not in resp['result']:
         logger.error("Неправильный ответ от API: нет 'result.postings'")
         return
@@ -18,23 +21,28 @@ def save_to_files_server_response(resp: Dict[str, Any]) -> None:
             logger.warning("В posting отсутствует posting_number, пропускаю.")
             continue
 
-        filename = os.path.join(ORDER_DIR, f"{posting_number}.dbf")
+        status = get_order_status(posting_number)
 
-        if os.path.exists(filename):
-            logger.info(f'Файл {filename} уже существует — пропускаю posting {posting_number}')
+        # Если уже создан DBF — пропускаем
+        if status == "dbf_created":
+            logger.info(f"{posting_number} уже обработан ранее")
             continue
 
+        # Если отменён — пропускаем
+        if status == "cancelled":
+            logger.info(f"{posting_number} отменён — пропуск")
+            continue
+
+        # ЕСЛИ ЗАКАЗА НЕТ В БАЗЕ — СОЗДАЁМ СО СТАТУСОМ 'new'
+        if status is None:
+            logger.info(f"Новый заказ {posting_number}, создаю в БД со статусом 'new'")
+            create_order(posting_number, "new")
+
+        filename = os.path.join(ORDER_DIR, f"{posting_number}.dbf")
         order_date_iso = posting.get('in_process_at')
         shipment_date_iso = posting.get('shipment_date')
         products = posting.get('products') or []
-
         comment_for_supplier = f'{posting_number} Заказ OZON {SHOP_NAME}'
-
-        # Проверяем requirements — если есть непустые списки, логируем
-        requirements = posting.get('requirements', {})
-        non_empty_requirements = {k: v for k, v in requirements.items() if isinstance(v, list) and v}
-        if non_empty_requirements:
-            logger.info(f"Posting {posting_number} имеет обязательные требования: {non_empty_requirements}")
 
         if not products:
             logger.info(f"Posting {posting_number} не содержит products")
@@ -51,5 +59,10 @@ def save_to_files_server_response(resp: Dict[str, Any]) -> None:
                 customer_id_in_supplier_crm=str(CUSTOMER_ID_IN_SUPPLIER_CRM),
                 division_id=str(DIVISION_ID_IN_SUPPLIER_CRM),
             )
+
+            # ПОСЛЕ УСПЕШНОГО СОЗДАНИЯ DBF — ОБНОВЛЯЕМ СТАТУС
+            update_order_status(posting_number, "dbf_created")
+            logger.info(f"Статус заказа {posting_number} обновлён на dbf_created")
+
         except Exception as e:
-            logger.exception(f"Ошибка при создании файла {filename} для posting {posting_number}: {e}")
+            logger.exception(f"Ошибка при создании файла {filename}: {e}")

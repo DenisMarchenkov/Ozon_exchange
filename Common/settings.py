@@ -63,6 +63,7 @@ else:
     # 🚀 БОЕВОЙ FTP НА VDS
     SUPPLIER_SOURCE = r"/home/ftp/supplier"
 
+
 # Исходный файл от поставщика
 SUPPLIER_SOURCE_FILE = os.path.join(
     SUPPLIER_SOURCE,
@@ -90,6 +91,16 @@ MISSING_COEFFICIENT_MIN_PRICE = 0.05
 SHOP_NAME = "Best seller ever"
 DIVISION_ID_IN_SUPPLIER_CRM = 10001
 CUSTOMER_ID_IN_SUPPLIER_CRM = 101
+
+
+# ============================================================
+# 🔹 БАЗА ДАННЫХ
+# ============================================================
+DATA_DIR = os.path.join(BASE_DIR, "Data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_PATH = os.path.join(DATA_DIR, "storage.db")
+
 
 
 # ============================================================
