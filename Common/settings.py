@@ -46,7 +46,6 @@ if not all([API_TOKEN, CLIENT_ID, WAREHOUSE_ID]):
 MARKUP_FILE = os.path.join(BASE_DIR, "Prices", "price change log.xlsx")
 
 # Папка внутри проекта, куда МЫ копируем прайсы поставщика
-#SUPPLIER_PRICE_FOLDER = os.path.join(BASE_DIR, "Common", "Supplier_prices")
 SUPPLIER_PRICE_FOLDER = os.path.join(BASE_DIR, "Supplier_prices")
 os.makedirs(SUPPLIER_PRICE_FOLDER, exist_ok=True)
 
