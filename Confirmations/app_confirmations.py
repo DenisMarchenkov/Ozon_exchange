@@ -2,14 +2,16 @@ import os
 from pprint import pprint
 
 from Common.logger import get_logger
-from Common.settings import CONFIRMATIONS_DIR
+from Common.settings import CONFIRMATIONS_DIR, BASE_DIR
 from Confirmations.readers.excel_reader import ConfirmationsReader
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 loger = get_logger("app_confirmations")
 
 def main():
     loger.info("=== Запуск проверки подтверждений ===")
-    reader = ConfirmationsReader(CONFIRMATIONS_DIR)
+    reader = ConfirmationsReader(folder_path=CONFIRMATIONS_DIR,
+                                 mapping_file=os.path.join(BASE_DIR, "Confirmations", "column_map.json")
+                                 )
     df_all = reader.df_all
     df_ok = reader.ok_df
     df_bad = reader.bad_df
@@ -17,9 +19,10 @@ def main():
     pprint(df_ok)
     pprint(df_bad)
 
-    builder =  WarehouseFileBuilder(df=df_ok, output_path=os.path.join(CONFIRMATIONS_DIR, 'warehouse_file.xlsx'))
+    builder =  WarehouseFileBuilder(df=df_ok,
+                                    output_path=os.path.join(CONFIRMATIONS_DIR, 'warehouse_file.xlsx')
+                                    )
     builder.save()
-
     loger.info("=== Проверка подтверждений закончена ===")
 
 

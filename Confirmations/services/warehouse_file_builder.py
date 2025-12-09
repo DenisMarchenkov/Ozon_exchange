@@ -23,21 +23,23 @@ class WarehouseFileBuilder:
     # ----------------------------------------------------
     def _make_orders_summary(self) -> pd.DataFrame:
         summary = (
-            self.df.groupby("HDRTAG2")
+            self.df.groupby("ORDER_ID")
             .agg(
                 QNT=("QNT", "sum"),
-                PRICE2=("PRICE2", "sum"),
-                DATEZ=("DATEZ", "first"),
-                HDRTAG1=("HDRTAG1", "first"),
+                PRICE_WITH_VAT=("PRICE_WITH_VAT", "sum"),
+                DATE_ORDER=("DATE_ORDER", "first"),
+                DATE_SHIP=("DATE_SHIP", "first"),
             )
             .reset_index()
         )
 
         summary.rename(
             columns={
-                "HDRTAG2": "ORDER_ID",
-                "QNT": "TOTAL_QNT",
-                "PRICE2": "TOTAL_SUM",
+                "ORDER_ID": "Номер заказа",
+                "QNT": "Итого позиций",
+                "PRICE_WITH_VAT": "Итого с НДС",
+                "DATE_ORDER": "Дата заказа",
+                "DATE_SHIP": "Дата отгрузки"
             },
             inplace=True,
         )
@@ -49,9 +51,19 @@ class WarehouseFileBuilder:
     # ----------------------------------------------------
     def _make_items_summary(self) -> pd.DataFrame:
         items = (
-            self.df.groupby(["FIRM", "CODEART", "NAME", "GDATE"])
+            self.df.groupby(["BRAND", "CODEART", "NAME", "DATE_EXPIRATION"])
             .agg(QNT=("QNT", "sum"))
             .reset_index()
+        )
+
+        items = items.rename(
+            columns={
+                "BRAND": "Бренд",
+                "CODEART": "Артикул",
+                "NAME": "Наименование",
+                "DATE_EXPIRATION": "Срок годности",
+                "QNT": "Колл-во",
+            }
         )
         return items
 
@@ -59,7 +71,28 @@ class WarehouseFileBuilder:
     #  3. Полная таблица
     # ----------------------------------------------------
     def _make_full_sheet(self) -> pd.DataFrame:
-        return self.df.copy()
+        df_full = self.df.copy()
+        df_full = df_full.rename(columns={
+            "ORDER_ID": "Номер заказа",
+            "FIRM": "Компания",
+            "CODEPST": "Вн. код",
+            "CODEART": "Артикул",
+            "NAME": "Наименование",
+            "QNT": "Количество",
+            "PRICE_WITH_VAT": "Цена с НДС",
+            "DATE_EXPIRATION": "Срок годности",
+            "PODRCD": "Подразделение",
+            "DATE_ORDER": "Дата заказа",
+            "DATE_SHIP": "Дата отгрузки",
+            "REFUSED": "Отказано",
+            "BRAND": "Бренд",
+        })
+
+        drop_cols = ["Вн. код", "Отказано", "__source_file__", "Подразделение"]
+
+        df_full = df_full.drop(columns=[c for c in drop_cols if c in df_full])
+
+        return df_full
 
     # ----------------------------------------------------
     #  СОХРАНЕНИЕ EXCEL
@@ -75,7 +108,7 @@ class WarehouseFileBuilder:
 
                 # Лист 2
                 items_summary = self._make_items_summary()
-                items_summary.to_excel(writer, sheet_name="Items by FIRM", index=False)
+                items_summary.to_excel(writer, sheet_name="Items by Brand", index=False)
 
                 # Лист 3
                 full_sheet = self._make_full_sheet()

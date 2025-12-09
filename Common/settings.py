@@ -107,7 +107,7 @@ DB_PATH = os.path.join(DATA_DIR, "storage.db")
 # ============================================================
 
 CONFIRMATIONS_DIR = os.path.join(SUPPLIER_SOURCE, "Confirmations")
-os.makedirs(ORDER_DIR, exist_ok=True)
+os.makedirs(CONFIRMATIONS_DIR, exist_ok=True)
 
 # ============================================================
 # 🔹 ЗАЩИТА ОТ СЛУЧАЙНОГО PROD НА WINDOWS
