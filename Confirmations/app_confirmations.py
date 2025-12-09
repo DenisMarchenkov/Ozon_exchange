@@ -2,7 +2,7 @@ import os
 from pprint import pprint
 
 from Common.logger import get_logger
-from Common.settings import CONFIRMATIONS_DIR, BASE_DIR
+from Confirmations.settings_app.settings_confirmations import CONFIRMATIONS_DIR, SETTINGS_APP_DIR
 from Confirmations.readers.excel_reader import ConfirmationsReader
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 loger = get_logger("app_confirmations")
@@ -10,7 +10,7 @@ loger = get_logger("app_confirmations")
 def main():
     loger.info("=== Запуск проверки подтверждений ===")
     reader = ConfirmationsReader(folder_path=CONFIRMATIONS_DIR,
-                                 mapping_file=os.path.join(BASE_DIR, "Confirmations", "column_map.json")
+                                 mapping_file=os.path.join(SETTINGS_APP_DIR, "column_map.json")
                                  )
     df_all = reader.df_all
     df_ok = reader.ok_df

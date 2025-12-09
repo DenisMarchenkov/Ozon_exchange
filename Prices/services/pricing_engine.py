@@ -2,7 +2,7 @@ import math
 import pandas as pd
 
 from typing import Dict
-from Common.settings import MISSING_DATA_MARKUP, MISSING_COEFFICIENT_OLD_PRICE, MISSING_COEFFICIENT_MIN_PRICE
+from Prices.settings_app.settings_prices import MISSING_DATA_MARKUP, MISSING_COEFFICIENT_OLD_PRICE, MISSING_COEFFICIENT_MIN_PRICE
 from Common.logger import get_logger
 logger = get_logger("Prices")
 

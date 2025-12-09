@@ -74,7 +74,7 @@ class WarehouseFileBuilder:
         df_full = self.df.copy()
         df_full = df_full.rename(columns={
             "ORDER_ID": "Номер заказа",
-            "FIRM": "Компания",
+            "BRAND": "Бренд",
             "CODEPST": "Вн. код",
             "CODEART": "Артикул",
             "NAME": "Наименование",
@@ -85,12 +85,32 @@ class WarehouseFileBuilder:
             "DATE_ORDER": "Дата заказа",
             "DATE_SHIP": "Дата отгрузки",
             "REFUSED": "Отказано",
-            "BRAND": "Бренд",
         })
 
-        drop_cols = ["Вн. код", "Отказано", "__source_file__", "Подразделение"]
+        keep_cols = [
+            "Номер заказа",
+            "Бренд",
+            "Артикул",
+            "Наименование",
+            "Количество",
+            "Цена с НДС",
+            "Срок годности",
+            "Дата заказа",
+            "Дата отгрузки",
+        ]
 
-        df_full = df_full.drop(columns=[c for c in drop_cols if c in df_full])
+        # Какие есть
+        existing_cols = [c for c in keep_cols if c in df_full.columns]
+
+        # Какие пропали
+        missing_cols = [c for c in keep_cols if c not in df_full.columns]
+
+        if missing_cols:
+            logger.warning(
+                f"В WarehouseFileBuilder: отсутствуют колонки, которые должны быть в выходном файле: {missing_cols}"
+            )
+
+        df_full = df_full[existing_cols]
 
         return df_full
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 
 from Common.logger import get_logger
-from Common.settings import COMMON_DIR, BASE_DIR
+from Confirmations.settings_app.settings_confirmations import SETTINGS_APP_DIR
 
 logger = get_logger("Confirmations")
 
@@ -22,7 +22,7 @@ class ConfirmationsReader:
 
         # путь к файлу маппинга
         if mapping_file is None:
-            mapping_file = os.path.join(BASE_DIR, "Confirmations","column_map.json")
+            mapping_file = os.path.join(SETTINGS_APP_DIR, "column_map.json")
 
         # загрузка маппинга
         with open(mapping_file, "r", encoding="utf-8") as f:
