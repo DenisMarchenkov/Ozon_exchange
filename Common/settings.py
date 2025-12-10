@@ -69,6 +69,18 @@ DB_PATH = os.path.join(DATA_DIR, "storage.db")
 
 
 # ============================================================
+# 🔹 НАСТРОЙКИ ДЛЯ РАБОТЫ С ПОЧТОЙ
+# ============================================================
+MAILER_SERVER_IMAP = "imap.yandex.ru"
+MAILER_PORT_IMAP = "993"
+MAILER_SERVER_SMTP = "smtp.yandex.ru"
+MAILER_PORT_SMTP = "587"
+MAILER_LOGIN = os.getenv("MAILER_LOGIN")
+MAILER_PASSWORD = os.getenv("MAILER_PASSWORD_API")
+RECIPIENT_ADMIN = ["DenisMarchenkov@dfarm.ru"]
+
+
+# ============================================================
 # 🔹 ЗАЩИТА ОТ СЛУЧАЙНОГО PROD НА WINDOWS
 # ============================================================
 if not DEV_MODE and SUPPLIER_SOURCE.startswith("C:"):

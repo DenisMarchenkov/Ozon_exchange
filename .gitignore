@@ -20,3 +20,5 @@ Supplier_prices/
 Logs/
 Data/
 *.log
+*.xlsx
+*.xls

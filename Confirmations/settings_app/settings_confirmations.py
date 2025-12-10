@@ -10,3 +10,4 @@ APP_DIR = os.path.join(BASE_DIR, "Confirmations")
 
 # папка с настройками для приложения
 SETTINGS_APP_DIR = os.path.join(APP_DIR, "settings_app")
+
