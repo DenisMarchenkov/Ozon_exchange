@@ -34,7 +34,6 @@ class ConfirmationsRecorder:
 
                 # Добавляем позиции
                 for _, row in ok_df[ok_df["ORDER_ID"] == posting_number].iterrows():
-                    print(row)
                     self.repo.add_item(
                         confirmation_id=conf_id,
                         sku=row.get("CODEART", ""),

@@ -2,9 +2,11 @@ import os
 from pprint import pprint
 
 from Common.logger import get_logger
+from Common.settings import RECIPIENT_ADMIN
 from Confirmations.db_confirmations.confirmation_repository import ConfirmationsRepository
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
+from Confirmations.services.error_mailer import ErrorMailer
 from Confirmations.settings_app.settings_confirmations import CONFIRMATIONS_DIR, SETTINGS_APP_DIR
 from Confirmations.readers.excel_reader import ConfirmationsReader
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
@@ -39,9 +41,34 @@ def main():
 
 
     # 3. Переводим все ОК заказы в awaiting_delivery
-    packages = reader.ok_df["ORDER_ID"].unique().tolist()
+    #packages = reader.ok_df["ORDER_ID"].unique().tolist()
+    good_confirmations = ConfirmationsRepository().get_by_status("OK")
+    for c in good_confirmations:
+        print(c)
+
+    packages = [c["posting_number"] for c in good_confirmations]
     updater = ConfirmationsStatusUpdater()
     updater.process_deliveries(packages)
+
+    print("_______________________________________________")
+    all_confirmations = ConfirmationsRepository().get_all()
+    for c in all_confirmations:
+        print(c)
+
+    # 3.1 Если были ошибки отправляем письмо
+    bad_confirmations = ConfirmationsRepository().get_by_status("error")
+    for c in bad_confirmations:
+        print(c)
+    if bad_confirmations:
+        loger.info(f"Отправляем письмо об ошибках")
+        mailer = ErrorMailer(
+            bad_confirmations=bad_confirmations,
+            to=RECIPIENT_ADMIN,
+            smtp_user="MAILER_LOGIN",
+            smtp_password="MAILER_PASSWORD",
+        )
+        mailer.send()
+
 
     # 4. Формируем файл для склада
     builder =  WarehouseFileBuilder(df=reader.ok_df,
@@ -57,3 +84,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # repo = ConfirmationsRepository()
+    # rows = repo.get_all()
+    # for row in rows:
+    #     print("posting:", row["posting_number"])
+    #     print("status:", row["status"])
+    #     print("error_message:", row["error_message"])

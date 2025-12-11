@@ -1,8 +1,37 @@
 from Common.logger import get_logger
 from Confirmations.api.ozon_confirmations_api import OzonConfirmationsAPI
 from Confirmations.db_confirmations.confirmation_repository import ConfirmationsRepository
+from Confirmations.services.error_mailer import ErrorMailer
 
 logger = get_logger("ConfirmationsDeliveryService")
+
+
+# class ConfirmationsStatusUpdater:
+#     """
+#     Получает список posting_numbers → обновляет статусы на Ozon →
+#     обновляет статус в локальной БД (confirmations).
+#     """
+#
+#     def __init__(self):
+#         self.api = OzonConfirmationsAPI()
+#         self.repo = ConfirmationsRepository()
+#
+#     def process_deliveries(self, posting_numbers: list[str]):
+#         logger.info(f"Начинаем обновление {len(posting_numbers)} заказов")
+#
+#         for pn in posting_numbers:
+#             ok, err = self.api.ship_posting(pn)
+#
+#             if ok:
+#                 self.repo.update_status(pn, "awaiting_delivery")
+#                 logger.info(f"{pn}: статус обновлён в БД")
+#             else:
+#                 self.repo.update_status(pn, "error")
+#                 logger.error(f"{pn}: ошибка ship — {err}")
+#                 # mailer = ErrorMailer(pn)
+#                 # mailer.send()
+#
+#         logger.info("Обновление статусов завершёно")
 
 
 class ConfirmationsStatusUpdater:
@@ -19,12 +48,19 @@ class ConfirmationsStatusUpdater:
         logger.info(f"Начинаем обновление {len(posting_numbers)} заказов")
 
         for pn in posting_numbers:
-            ok, err = self.api.ship_posting(pn)
+
+            try:
+                ok, err = self.api.ship_posting(pn)
+            except Exception as e:
+                ok = False
+                err = f"{e}"
+                logger.exception(f"{pn}: Внутренняя ошибка обработки")
 
             if ok:
                 self.repo.update_status(pn, "awaiting_delivery")
                 logger.info(f"{pn}: статус обновлён в БД")
             else:
+                self.repo.update_status(pn, "error", err)
                 logger.error(f"{pn}: ошибка ship — {err}")
 
-        logger.info("Обновление статусов завершёно")
+        logger.info("Обновление статусов завершено")
