@@ -4,18 +4,28 @@ from Common.settings import DB_PATH
 
 
 class ConfirmationsRepository:
+    """
+    Репозиторий для работы с таблицами confirmations и confirmation_items.
+    ORM-заменитель на sqlite.
+    """
+
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
         self._init_tables()
 
+    # ------------------------------------------
+    # Внутренние методы
+    # ------------------------------------------
+
     def _get_conn(self):
+        """Создаёт новое подключение к БД."""
         return sqlite3.connect(self.db_path)
 
     def _init_tables(self):
+        """Создаёт таблицы, если их ещё нет."""
         with self._get_conn() as conn:
             cur = conn.cursor()
 
-            # Таблица подтверждений
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS confirmations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +36,6 @@ class ConfirmationsRepository:
                 )
             """)
 
-            # Таблица позиций в подтверждении
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS confirmation_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,9 +55,9 @@ class ConfirmationsRepository:
 
             conn.commit()
 
-    # ======================================================
-    # CRUD Confirmations
-    # ======================================================
+    # ------------------------------------------
+    # Confirmations CRUD
+    # ------------------------------------------
 
     def add_confirmation(self, posting_number: str, status: str = "NEW") -> int:
         with self._get_conn() as conn:
@@ -96,9 +105,9 @@ class ConfirmationsRepository:
             cur.execute("DELETE FROM confirmations WHERE posting_number=?", (posting_number,))
             conn.commit()
 
-    # ======================================================
-    # CRUD Items
-    # ======================================================
+    # ------------------------------------------
+    # Items CRUD
+    # ------------------------------------------
 
     def add_item(self, confirmation_id: int, sku: str, name: str, quantity: int, item_status="OK"):
         with self._get_conn() as conn:

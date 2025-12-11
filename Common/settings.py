@@ -26,9 +26,14 @@ BASE_DIR = os.path.dirname(COMMON_DIR)
 # ============================================================
 # 🔹 OZON API (ИЗ .env)
 # ============================================================
-API_TOKEN = os.getenv("OZON_API_TOKEN")
-CLIENT_ID = os.getenv("OZON_CLIENT_ID")
-WAREHOUSE_ID = os.getenv("OZON_WAREHOUSE_ID")
+if DEV_MODE:
+    API_TOKEN = "fasfaf"
+    CLIENT_ID = "afdasf"
+    WAREHOUSE_ID = "fsdfsadf"
+else:
+    API_TOKEN = os.getenv("OZON_API_TOKEN")
+    CLIENT_ID = os.getenv("OZON_CLIENT_ID")
+    WAREHOUSE_ID = os.getenv("OZON_WAREHOUSE_ID")
 
 if not all([API_TOKEN, CLIENT_ID, WAREHOUSE_ID]):
     raise RuntimeError("❌ Не заданы OZON API переменные в .env!")

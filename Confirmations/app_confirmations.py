@@ -1,10 +1,10 @@
 import os
+from pprint import pprint
 
 from Common.logger import get_logger
-from Common.settings import MAILER_PASSWORD, MAILER_LOGIN, RECIPIENT_ADMIN
+from Confirmations.db_confirmations.confirmation_repository import ConfirmationsRepository
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
-from Confirmations.services.db_confirmations import ConfirmationsRepository
-from Confirmations.services.defectura_mailer import DefecturaMailer
+from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
 from Confirmations.settings_app.settings_confirmations import CONFIRMATIONS_DIR, SETTINGS_APP_DIR
 from Confirmations.readers.excel_reader import ConfirmationsReader
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
@@ -40,6 +40,8 @@ def main():
 
     # 3. Переводим все ОК заказы в awaiting_delivery
     packages = reader.ok_df["ORDER_ID"].unique().tolist()
+    updater = ConfirmationsStatusUpdater()
+    updater.process_deliveries(packages)
 
     # 4. Формируем файл для склада
     builder =  WarehouseFileBuilder(df=reader.ok_df,
@@ -50,7 +52,6 @@ def main():
     # 5. Получаем наклейки
 
     # 6. Письмо складу (наклейки, файл подбора товаров)
-
     loger.info("=== Проверка подтверждений закончена ===")
 
 

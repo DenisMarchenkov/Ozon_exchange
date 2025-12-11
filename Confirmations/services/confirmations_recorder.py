@@ -1,4 +1,4 @@
-from Confirmations.services.db_confirmations import ConfirmationsRepository
+from Confirmations.db_confirmations.confirmation_repository import ConfirmationsRepository
 from Common.logger import get_logger
 
 logger = get_logger("Confirmations - confirmations_recorder.py")
@@ -34,11 +34,12 @@ class ConfirmationsRecorder:
 
                 # Добавляем позиции
                 for _, row in ok_df[ok_df["ORDER_ID"] == posting_number].iterrows():
+                    print(row)
                     self.repo.add_item(
                         confirmation_id=conf_id,
-                        sku=row.get("sku", ""),
-                        name=row.get("name", ""),
-                        quantity=row.get("quantity", 1),
+                        sku=row.get("CODEART", ""),
+                        name=row.get("NAME", ""),
+                        quantity=row.get("QNT"),
                         item_status="OK"
                     )
 
@@ -55,9 +56,9 @@ class ConfirmationsRecorder:
                 for _, row in refused_df[refused_df["ORDER_ID"] == posting_number].iterrows():
                     self.repo.add_item(
                         confirmation_id=conf_id,
-                        sku=row.get("sku", ""),
-                        name=row.get("name", ""),
-                        quantity=row.get("quantity", 1),
+                        sku=row.get("CODEART", ""),
+                        name=row.get("NAME", ""),
+                        quantity=row.get("QNT"),
                         item_status="REFUSED"
                     )
 

@@ -51,7 +51,22 @@ def send_request_with_retries(
     while attempt < max_attempts:
         try:
             if DEV_MODE:
-                response: Union[Response, FakeResponse] = FakeResponse.ok(get_fake_data("fake_response_order.json"))
+                # response: Union[Response, FakeResponse] = FakeResponse.ok(get_fake_data("fake_response_order.json"))
+
+                if "posting/fbs/get" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        get_fake_data("fake_response_get_order_info.json")
+                    )
+
+                elif "posting/fbs/ship" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        get_fake_data("fake_response_confirmation_ship.json")
+                    )
+
+                else:
+                    response = FakeResponse.ok({"result": "test_ok"})
+
+                # response: Union[Response, FakeResponse] = FakeResponse.ok(get_fake_data("fake_response_confirmation_ship.json"))
                 # response: Union[Response, FakeResponse] = FakeResponse.too_many_requests(retry_after=2)
                 # response: Union[Response, FakeResponse] = FakeResponse.server_error()
                 # response: Union[Response, FakeResponse] = FakeResponse.not_found()

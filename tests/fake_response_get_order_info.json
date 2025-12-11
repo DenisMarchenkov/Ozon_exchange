@@ -1,0 +1,99 @@
+{
+  "result": {
+    "posting_number": "57195475-0050-3",
+    "order_id": 438764970,
+    "order_number": "57195475-0050",
+    "pickup_code_verified_at": "2025-01-17T11:04:59.958Z",
+    "status": "awaiting_packaging",
+    "substatus": "posting_awaiting_passport_data",
+    "previous_substatus": "posting_transferring_to_delivery",
+    "delivery_method": {
+      "id": 18114520187000,
+      "name": "Ozon Логистика самостоятельно, Москва",
+      "warehouse_id": 18114520187000,
+      "warehouse": "Москва основной",
+      "tpl_provider_id": 24,
+      "tpl_provider": "Ozon Логистика"
+    },
+    "tracking_number": "",
+    "tpl_integration_type": "ozon",
+    "in_process_at": "2021-11-20T09:14:16Z",
+    "shipment_date": "2021-11-23T10:00:00Z",
+    "shipment_date_without_delay": "2021-11-23T10:00:00Z",
+    "delivering_date": null,
+    "provider_status": "",
+    "delivery_price": "",
+    "optional": {
+      "products_with_possible_mandatory_mark": [
+        0
+      ]
+    },
+    "cancellation": {
+      "cancel_reason_id": 0,
+      "cancel_reason": "",
+      "cancellation_type": "",
+      "cancelled_after_ship": false,
+      "affect_cancellation_rating": false,
+      "cancellation_initiator": ""
+    },
+    "customer": null,
+    "addressee": null,
+    "products": [
+      {
+        "currency_code": "RUB",
+        "is_blr_traceable": true,
+        "is_marketplace_buyout": true,
+        "price": "279.0000",
+        "offer_id": "250-7898-1",
+        "name": "Кофе ароматизированный \"Шоколадный апельсин\" 250 гр",
+        "sku": 180550365,
+        "quantity": 1,
+        "jw_uin": [],
+        "dimensions": {
+          "height": "40.00",
+          "length": "240.00",
+          "weight": "260",
+          "width": "140.00"
+        },
+        "has_imei": false
+      }
+    ],
+    "barcodes": null,
+    "analytics_data": null,
+    "financial_data": null,
+    "additional_data": [],
+    "is_express": false,
+    "legal_info": {
+      "company_name": "string",
+      "inn": "string",
+      "kpp": "string"
+    },
+    "related_postings": {
+      "related_posting_numbers": [
+        "string"
+      ]
+    },
+    "require_blr_traceable_attrs": true,
+    "requirements": {
+      "products_requiring_change_country": [],
+      "products_requiring_gtd": [],
+      "products_requiring_country": [],
+      "products_requiring_jwn": [],
+      "products_requiring_imei": []
+    },
+    "product_exemplars": null,
+    "tariffication": [
+      {
+        "current_tariff_rate": 0,
+        "current_tariff_type": "",
+        "current_tariff_charge": "",
+        "current_tariff_charge_currency_code": "",
+        "next_tariff_rate": 0,
+        "next_tariff_type": "",
+        "next_tariff_charge": "",
+        "next_tariff_starts_at": "2023-11-13T08:05:57.657Z",
+        "next_tariff_charge_currency_code": ""
+      }
+    ]
+  }
+}
