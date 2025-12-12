@@ -364,6 +364,7 @@ class ConfirmationsRepository:
                 CREATE TABLE IF NOT EXISTS confirmations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     posting_number TEXT NOT NULL UNIQUE,
+                    division_id INTEGER NOT NULL,
                     status TEXT NOT NULL,
                     error_message TEXT,
                     created_at TEXT NOT NULL,
@@ -376,9 +377,11 @@ class ConfirmationsRepository:
                 CREATE TABLE IF NOT EXISTS confirmation_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     confirmation_id INTEGER NOT NULL,
-                    sku TEXT NOT NULL,
+                    sku_code INTEGER NOT NULL,
+                    sku_art TEXT NOT NULL,
                     name TEXT,
-                    quantity INTEGER NOT NULL,
+                    quantity_confirm INTEGER NOT NULL,
+                    quantity_refused INTEGER NOT NULL,
                     item_status TEXT DEFAULT 'OK',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -412,14 +415,14 @@ class ConfirmationsRepository:
     # Confirmations CRUD
     # ------------------------------------------
 
-    def add_confirmation(self, posting_number: str, status: str = "NEW") -> int:
+    def add_confirmation(self, posting_number: str, division_id: int,status: str = "NEW") -> int:
         now = self._now_iso()
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                INSERT INTO confirmations (posting_number, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?)
-            """, (posting_number, status, now, now))
+                INSERT INTO confirmations (posting_number, status, division_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (posting_number, status, division_id, now, now))
             conn.commit()
             return cur.lastrowid
 
@@ -494,15 +497,16 @@ class ConfirmationsRepository:
     # Items CRUD
     # ------------------------------------------
 
-    def add_item(self, confirmation_id: int, sku: str, name: str, quantity: int, item_status="OK") -> int:
+    def add_item(self, confirmation_id: int, sku_code: int, sku_art: str, name: str,
+                 quantity_confirm: int, quantity_refused: int,item_status="OK") -> int:
         now = self._now_iso()
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO confirmation_items
-                (confirmation_id, sku, name, quantity, item_status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (confirmation_id, sku, name, quantity, item_status, now, now))
+                (confirmation_id, sku_code, sku_art, name, quantity_confirm, quantity_refused, item_status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (confirmation_id, sku_code ,sku_art, name, quantity_confirm, quantity_refused, item_status, now, now))
             conn.commit()
             return cur.lastrowid
 

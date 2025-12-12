@@ -86,8 +86,16 @@ def main():
         ok_df=reader.ok_df,
         refused_df=reader.bad_df,
     )
+    print(reader.df_all.columns.tolist())
 
     repo = ConfirmationsRepository()
+    row = repo.get_all_items()
+    for r in row:
+        print(r)
+
+    row = repo.get_all()
+    for r in row:
+        print(r)
 
     # ============================================================
     # 2. ОБНОВЛЕНИЕ СТАТУСОВ НА OZON (ship)
@@ -127,9 +135,7 @@ def main():
     )
     builder.save()
 
-    row = repo.get_all_items()
-    for r in row:
-        print(r)
+
     # ============================================================
     # 5. ГЕНЕРАЦИЯ НАКЛЕЕК (TODO)
     # ============================================================
