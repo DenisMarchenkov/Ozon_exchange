@@ -1,4 +1,4 @@
-from Confirmations.db_confirmations.confirmation_repository import ConfirmationsRepository
+from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Common.logger import get_logger
 
 logger = get_logger("Confirmations - confirmations_recorder.py")
@@ -29,7 +29,7 @@ class ConfirmationsRecorder:
                     continue
 
                 # Создаём подтверждение
-                conf_id = self.repo.add_confirmation(posting_number, status="OK")
+                conf_id = self.repo.add_confirmation(posting_number, status="confirmed")
                 processed_postings.append(posting_number)
 
                 # Добавляем позиции
@@ -49,7 +49,7 @@ class ConfirmationsRecorder:
                     logger.info(f"[REFUSED] Подтверждение {posting_number} уже есть в базе — пропускаем")
                     continue
 
-                conf_id = self.repo.add_confirmation(posting_number, status="REFUSED")
+                conf_id = self.repo.add_confirmation(posting_number, status="awaiting_confirmation")
                 processed_postings.append(posting_number)
 
                 for _, row in refused_df[refused_df["ORDER_ID"] == posting_number].iterrows():

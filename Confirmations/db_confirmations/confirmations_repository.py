@@ -309,6 +309,8 @@
 
 import sqlite3
 from datetime import datetime, timezone
+from typing import Any
+
 from Common.settings import DB_PATH
 
 class ConfirmationsRepository:
@@ -401,6 +403,11 @@ class ConfirmationsRepository:
         """Преобразует sqlite3.Row в обычный словарь"""
         return {k: row[k] for k in row.keys()}
 
+    # @staticmethod
+    # def _row_to_list(row: sqlite3.Row) -> list[Any]:
+    #     """Преобразует sqlite3.Row в обычный список"""
+    #     return [r for r in row]
+
     # ------------------------------------------
     # Confirmations CRUD
     # ------------------------------------------
@@ -456,7 +463,7 @@ class ConfirmationsRepository:
             """, (status,))
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
-    def get_list_postings_numbers_by_status(self, status: str) -> list[dict]:
+    def get_list_postings_numbers_by_status(self, status: str) -> list[Any]:
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
@@ -464,7 +471,18 @@ class ConfirmationsRepository:
                 WHERE status=?
                 ORDER BY id DESC
             """, (status,))
-            return [self._row_to_dict(r) for r in cur.fetchall()]
+            return [r["posting_number"] for r in cur.fetchall()]
+
+    def print_all_confirmations(self):
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT * FROM confirmations
+                ORDER BY id DESC
+            """)
+            rows = cur.fetchall()
+            for r in rows:
+                print(self._row_to_dict(r))
 
     def delete_confirmation(self, posting_number: str):
         with self._get_conn() as conn:
@@ -488,11 +506,20 @@ class ConfirmationsRepository:
             conn.commit()
             return cur.lastrowid
 
-    def get_items(self, confirmation_id: int) -> list[dict]:
+    def get_items_by_posting_number(self, confirmation_id: int) -> list[dict]:
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT * FROM confirmation_items
                 WHERE confirmation_id=?
             """, (confirmation_id,))
+            return [self._row_to_dict(r) for r in cur.fetchall()]
+
+    def get_all_items(self) -> list[dict]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT * FROM confirmation_items
+                ORDER BY id DESC
+            """)
             return [self._row_to_dict(r) for r in cur.fetchall()]

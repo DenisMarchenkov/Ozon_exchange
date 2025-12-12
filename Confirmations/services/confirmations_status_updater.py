@@ -1,6 +1,6 @@
 from Common.logger import get_logger
 from Confirmations.api.ozon_confirmations_api import OzonConfirmationsAPI
-from Confirmations.db_confirmations.confirmation_repository import ConfirmationsRepository
+from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.services.error_mailer import ErrorMailer
 
 logger = get_logger("ConfirmationsDeliveryService")
