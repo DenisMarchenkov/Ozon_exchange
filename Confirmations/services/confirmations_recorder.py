@@ -1,90 +1,143 @@
-from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
-from Common.logger import get_logger
+import pandas as pd
 
-logger = get_logger("Confirmations - confirmations_recorder.py")
+from Common.logger import get_logger
+from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
+from Confirmations.utils.time import now_iso
+
+logger = get_logger("ConfirmationsRecorder")
 
 
 class ConfirmationsRecorder:
     """
-    Сервис для обработки подтверждений.
-    Принимает два датафрейма: ok_df и refused_df
+    Сервисный слой.
+
+    Отвечает за:
+    - чтение DataFrame
+    - создание / обновление confirmations
+    - перезапись confirmation_items
+    - корректный расчёт итогового статуса
+
+    Поддерживает повторный импорт:
+    REFUSED → OK
     """
 
-    def __init__(self):
-        self.repo = ConfirmationsRepository()
+    REQUIRED_COLUMNS = {
+        "ORDER_ID",
+        "CODEPST",
+        "CODEART",
+        "NAME",
+        "QNT",
+        "REFUSED",
+        "PODRCD",
+    }
 
-    def process_confirmations(self, ok_df, refused_df, source_file=None):
-        """
-        Обрабатывает датафреймы OK и REFUSED.
-        Создаёт подтверждения и позиции в базе.
-        Возвращает список всех posting_number, которые были обработаны.
-        """
-        processed_postings = []
+    PROTECTED_STATUSES = {"confirmed", "awaiting_delivery"}
 
-        # ----------- Обрабатываем OK -----------
-        if ok_df is not None and not ok_df.empty:
-            for posting_number in ok_df["ORDER_ID"].unique():
-                podrcd = int(ok_df.loc[ok_df["ORDER_ID"] == posting_number, "PODRCD"].iloc[0])
+    def __init__(self, repo: ConfirmationsRepository):
+        self.repo = repo
 
-                if self.repo.get_by_posting(posting_number):
-                    logger.info(f"[OK] Подтверждение {posting_number} уже есть в базе — пропускаем")
-                    continue
+    def record_from_dataframe(self, df: pd.DataFrame) -> list[str]:
+        if df is None or df.empty:
+            logger.info("Датафрейм пуст — нечего обрабатывать")
+            return []
 
-                # Создаём подтверждение
-                conf_id = self.repo.add_confirmation(posting_number, status="confirmed", division_id=podrcd)
-                processed_postings.append(posting_number)
+        missing = self.REQUIRED_COLUMNS - set(df.columns)
+        if missing:
+            raise ValueError(f"Отсутствуют обязательные колонки: {missing}")
 
-                # Добавляем позиции
-                for _, row in ok_df[ok_df["ORDER_ID"] == posting_number].iterrows():
-                    self.repo.add_item(
-                        confirmation_id=conf_id,
-                        sku_art=row.get("CODEART", ""),
-                        name=row.get("NAME", ""),
-                        quantity_confirm=row.get("QNT"),
-                        item_status="OK",
-                        sku_code=row.get("CODEPST"),
-                        quantity_refused=row.get("REFUSED"),
-                        # brand=row.get("BRAND"),
-                        # price_with_vat=row.get("PRICE_WITH_VAT"),
-                        # date_expiration=row.get("DATE_EXPIRATION"),
-                        # division_id=row.get("PODRCD"),
-                        # date_order=row.get("DATE_ORDER"),
-                        # date_ship=row.get("DATE_SHIP")
+        processed_postings: list[str] = []
 
-                    )
+        for posting_number_raw, group in df.groupby("ORDER_ID"):
+            posting_number: str = str(posting_number_raw)
+            processed_postings.append(str(posting_number))
+            division_id = int(group["PODRCD"].iloc[0])
+            source_file = (
+                group["__source_file__"].iloc[0]
+                if "__source_file__" in group.columns
+                else None
+            )
 
-        # ----------- Обрабатываем REFUSED -----------
-        if refused_df is not None and not refused_df.empty:
-            for posting_number in refused_df["ORDER_ID"].unique():
-                if self.repo.get_by_posting(posting_number):
-                    logger.info(f"[REFUSED] Подтверждение {posting_number} уже есть в базе — пропускаем")
-                    continue
-                podrcd = int(refused_df.loc[refused_df["ORDER_ID"] == posting_number, "PODRCD"].iloc[0])
-                conf_id = self.repo.add_confirmation(posting_number, status="awaiting_confirmation", division_id=podrcd)
-                processed_postings.append(posting_number)
+            existing = self.repo.get_by_posting(posting_number)
 
-                for _, row in refused_df[refused_df["ORDER_ID"] == posting_number].iterrows():
-                    self.repo.add_item(
-                        confirmation_id=conf_id,
-                        sku_art=row.get("CODEART", ""),
-                        name=row.get("NAME", ""),
-                        quantity_confirm=row.get("QNT"),
-                        item_status="REFUSED",
-                        sku_code = row.get("CODEPST"),
-                        quantity_refused=row.get("REFUSED"),
-                        # brand = row.get("BRAND"),
-                        # price_with_vat = row.get("PRICE_WITH_VAT"),
-                        # date_expiration = row.get("DATE_EXPIRATION"),
-                        # division_id = row.get("PODRCD"),
-                        # date_order = row.get("DATE_ORDER"),
-                        # date_ship = row.get("DATE_SHIP")
-                    )
+            # -------------------------------------------------
+            # 1. Защищённые статусы — НЕ ТРОГАЕМ
+            # -------------------------------------------------
+            if existing and existing["status"] in self.PROTECTED_STATUSES:
+                logger.info(
+                    f"{posting_number} уже в статусе "
+                    f"{existing['status']} — пропуск"
+                )
+                continue
 
-        logger.info(f"Обработано подтверждений: {len(processed_postings)}")
+            # -------------------------------------------------
+            # 2. Если подтверждение уже есть — обновляем
+            # -------------------------------------------------
+            if existing:
+                confirmation_id = existing["id"]
+                logger.info(
+                    f"{posting_number} найден (status={existing['status']}) — обновляем"
+                )
+                self.repo.delete_items_by_confirmation(confirmation_id)
+
+            # -------------------------------------------------
+            # 3. Если нет — создаём новое
+            # -------------------------------------------------
+            else:
+                confirmation_id = self.repo.add_confirmation(
+                    posting_number=posting_number,
+                    division_id=division_id,
+                    status="NEW",
+                    source_file=source_file,
+                    created_at=now_iso(),
+                    updated_at=now_iso()
+                )
+                logger.info(f"{posting_number} создано новое подтверждение")
+
+            # -------------------------------------------------
+            # 4. Формируем позиции
+            # -------------------------------------------------
+            items = []
+            has_refused = False
+
+            for _, row in group.iterrows():
+                # Определяем статус позиции
+                refused = int(row["REFUSED"])
+                item_status = "REFUSED" if refused > 0 else "OK"
+                if refused > 0:
+                    has_refused = True
+
+                items.append((
+                    confirmation_id,
+                    int(row["CODEPST"]),
+                    str(row["CODEART"]),
+                    row.get("NAME"),
+                    int(row["QNT"]),
+                    int(row["REFUSED"]),
+                    item_status,
+                    float(row["PRICE_WITH_VAT"]),
+                    str(row["GTD"]),
+                    str(row["DATE_EXPIRATION"]),
+                    str(row["BRAND"]),
+                    now_iso(),
+                    now_iso()
+                ))
+
+            self.repo.add_items_bulk(items)
+
+            # -------------------------------------------------
+            # 5. Финальный статус подтверждения
+            # -------------------------------------------------
+            final_status = "awaiting_confirmation" if has_refused else "confirmed"
+            self.repo.update_status(posting_number, final_status, now_iso())
+
+            logger.info(
+                f"{posting_number} обработан, итоговый статус: {final_status}"
+            )
+
+        logger.info(
+            f"Обработка подтверждений завершена. "
+            f"Всего обработано: {len(processed_postings)}"
+        )
+
         return processed_postings
 
-    def get_last_confirmations(self, limit=50):
-        """
-        Получить последние подтверждения.
-        """
-        return self.repo.get_all()

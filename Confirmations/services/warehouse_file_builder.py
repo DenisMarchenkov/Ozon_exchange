@@ -1,3 +1,5 @@
+from typing import Iterable
+
 import pandas as pd
 from pathlib import Path
 from Common.logger import get_logger
@@ -7,39 +9,53 @@ logger = get_logger("Confirmations - WarehouseFileBuilder")
 
 class WarehouseFileBuilder:
     """
-    Принимает df с подтверждёнными заказами (OK_df)
-    и создаёт Excel-файл с 3 листами:
-    1. Сводка по заказам
-    2. Сводка товаров для склада по маркам
-    3. Полная таблица
+    Формирует Excel-файл для склада.
+
+    Принимает:
+        rows: list[dict] — данные (обычно из БД)
     """
 
-    def __init__(self, df: pd.DataFrame, output_path: str):
-        self.df = df.copy()
+    def __init__(self, rows: Iterable[dict], output_path: str | Path):
+        self.rows = list(rows)
         self.output_path = Path(output_path)
+
+        if not self.rows:
+            logger.warning("WarehouseFileBuilder получил пустые данные")
+
+        # DataFrame — внутренний инструмент
+        self.df = pd.DataFrame(self.rows)
 
     # ----------------------------------------------------
     #  1. Сводка по заказам
     # ----------------------------------------------------
     def _make_orders_summary(self) -> pd.DataFrame:
+        required_cols = [
+            "posting_number",
+            "quantity_confirm",
+            "price_with_vat",
+            "date_order",
+            "date_ship",
+        ]
+        self._check_required(required_cols, "Orders Summary")
+
         summary = (
-            self.df.groupby("ORDER_ID")
+            self.df.groupby("posting_number")
             .agg(
-                QNT=("QNT", "sum"),
-                PRICE_WITH_VAT=("PRICE_WITH_VAT", "sum"),
-                DATE_ORDER=("DATE_ORDER", "first"),
-                DATE_SHIP=("DATE_SHIP", "first"),
+                QNT=("quantity_confirm", "sum"),
+                PRICE_WITH_VAT=("price_with_vat", "sum"),
+                DATE_ORDER=("date_order", "first"),
+                DATE_SHIP=("date_ship", "first"),
             )
             .reset_index()
         )
 
         summary.rename(
             columns={
-                "ORDER_ID": "Номер заказа",
+                "posting_number": "Номер заказа",
                 "QNT": "Итого позиций",
                 "PRICE_WITH_VAT": "Итого с НДС",
                 "DATE_ORDER": "Дата заказа",
-                "DATE_SHIP": "Дата отгрузки"
+                "DATE_SHIP": "Дата отгрузки",
             },
             inplace=True,
         )
@@ -50,92 +66,96 @@ class WarehouseFileBuilder:
     #  2. Сводка товаров для склада
     # ----------------------------------------------------
     def _make_items_summary(self) -> pd.DataFrame:
+        required_cols = [
+            "brand",
+            "sku_art",
+            "name",
+            "date_expiration",
+            "quantity_confirm",
+        ]
+        self._check_required(required_cols, "Items Summary")
+
         items = (
-            self.df.groupby(["BRAND", "CODEART", "NAME", "DATE_EXPIRATION"])
-            .agg(QNT=("QNT", "sum"))
+            self.df.groupby(
+                ["brand", "sku_art", "name", "date_expiration"]
+            )
+            .agg(QNT=("quantity_confirm", "sum"))
             .reset_index()
         )
 
-        items = items.rename(
+        items.rename(
             columns={
-                "BRAND": "Бренд",
-                "CODEART": "Артикул",
-                "NAME": "Наименование",
-                "DATE_EXPIRATION": "Срок годности",
+                "brand": "Бренд",
+                "sku_art": "Артикул",
+                "name": "Наименование",
+                "date_expiration": "Срок годности",
                 "QNT": "Колл-во",
-            }
+            },
+            inplace=True,
         )
+
         return items
 
     # ----------------------------------------------------
     #  3. Полная таблица
     # ----------------------------------------------------
     def _make_full_sheet(self) -> pd.DataFrame:
-        df_full = self.df.copy()
-        df_full = df_full.rename(columns={
-            "ORDER_ID": "Номер заказа",
-            "BRAND": "Бренд",
-            "CODEPST": "Вн. код",
-            "CODEART": "Артикул",
-            "NAME": "Наименование",
-            "QNT": "Количество",
-            "PRICE_WITH_VAT": "Цена с НДС",
-            "DATE_EXPIRATION": "Срок годности",
-            "PODRCD": "Подразделение",
-            "DATE_ORDER": "Дата заказа",
-            "DATE_SHIP": "Дата отгрузки",
-            "REFUSED": "Отказано",
-        })
+        rename_map = {
+            "posting_number": "Номер заказа",
+            "brand": "Бренд",
+            "sku_art": "Артикул",
+            "name": "Наименование",
+            "quantity_confirm": "Количество",
+            "price_with_vat": "Цена с НДС",
+            "date_expiration": "Срок годности",
+            "date_order": "Дата заказа",
+            "date_ship": "Дата отгрузки",
+        }
 
-        keep_cols = [
-            "Номер заказа",
-            "Бренд",
-            "Артикул",
-            "Наименование",
-            "Количество",
-            "Цена с НДС",
-            "Срок годности",
-            "Дата заказа",
-            "Дата отгрузки",
-        ]
+        df_full = self.df.rename(columns=rename_map)
 
-        # Какие есть
-        existing_cols = [c for c in keep_cols if c in df_full.columns]
+        keep_cols = list(rename_map.values())
 
-        # Какие пропали
-        missing_cols = [c for c in keep_cols if c not in df_full.columns]
+        existing = [c for c in keep_cols if c in df_full.columns]
+        missing = [c for c in keep_cols if c not in df_full.columns]
 
-        if missing_cols:
+        if missing:
             logger.warning(
-                f"В WarehouseFileBuilder: отсутствуют колонки, которые должны быть в выходном файле: {missing_cols}"
+                f"В выходном файле отсутствуют ожидаемые колонки: {missing}"
             )
 
-        df_full = df_full[existing_cols]
-
-        return df_full
+        return df_full[existing]
 
     # ----------------------------------------------------
-    #  СОХРАНЕНИЕ EXCEL
+    #  Сохранение Excel
     # ----------------------------------------------------
     def save(self):
         try:
+            # 👉 СНАЧАЛА строим все листы
+            orders = self._make_orders_summary()
+            items = self._make_items_summary()
+            full = self._make_full_sheet()
+
             self.output_path.parent.mkdir(parents=True, exist_ok=True)
 
             with pd.ExcelWriter(self.output_path, engine="openpyxl") as writer:
-                # Лист 1
-                orders_summary = self._make_orders_summary()
-                orders_summary.to_excel(writer, sheet_name="Orders Summary", index=False)
-
-                # Лист 2
-                items_summary = self._make_items_summary()
-                items_summary.to_excel(writer, sheet_name="Items by Brand", index=False)
-
-                # Лист 3
-                full_sheet = self._make_full_sheet()
-                full_sheet.to_excel(writer, sheet_name="Full Data", index=False)
+                orders.to_excel(writer, sheet_name="Orders Summary", index=False)
+                items.to_excel(writer, sheet_name="Items by Brand", index=False)
+                full.to_excel(writer, sheet_name="Full Data", index=False)
 
             logger.info(f"Файл для склада создан: {self.output_path}")
 
-        except Exception as e:
-            logger.exception(f"Ошибка при формировании Excel: {e}")
+        except Exception:
+            logger.exception("Ошибка при формировании Excel-файла")
             raise
+
+    # ----------------------------------------------------
+    #  Валидация
+    # ----------------------------------------------------
+    def _check_required(self, cols: list[str], sheet_name: str):
+        missing = [c for c in cols if c not in self.df.columns]
+        if missing:
+            raise ValueError(
+                f"Недостаточно данных для листа '{sheet_name}'. "
+                f"Отсутствуют колонки: {missing}"
+            )

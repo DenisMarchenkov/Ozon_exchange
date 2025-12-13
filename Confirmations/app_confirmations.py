@@ -1,6 +1,5 @@
 import os
-from pprint import pprint
-
+import pandas as pd
 from Common.logger import get_logger
 from Common.settings import RECIPIENT_ADMIN
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
@@ -11,63 +10,6 @@ from Confirmations.settings_app.settings_confirmations import CONFIRMATIONS_DIR,
 from Confirmations.readers.excel_reader import ConfirmationsReader
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 logger = get_logger("app_confirmations")
-
-# def main():
-#     loger.info("=== Запуск проверки подтверждений ===")
-#
-#
-#     # 1. Читаем все подтверждения
-#     reader = ConfirmationsReader(folder_path=CONFIRMATIONS_DIR,
-#                                  mapping_file=os.path.join(SETTINGS_APP_DIR, "column_map.json")
-#                                  )
-#
-#     # 1.1 Пишем в бд
-#     service = ConfirmationsRecorder()
-#     service.process_confirmations(
-#         ok_df=reader.ok_df,
-#         refused_df=reader.bad_df,
-#     )
-#
-#
-#     # 2. Если есть дефектура → письмо
-#     # if not reader.bad_df.empty:
-#     #     mailer = DefecturaMailer(
-#     #         df=reader.bad_df,
-#     #         to=RECIPIENT_ADMIN,
-#     #         smtp_user=MAILER_LOGIN,
-#     #         smtp_password=MAILER_PASSWORD,
-#     #     )
-#     #     mailer.send()
-#
-#
-#     # 3. Переводим все confirmed заказы в awaiting_delivery
-#     repo = ConfirmationsRepository()
-#     confirmed_confirmations = repo.get_list_postings_numbers_by_status("confirmed")
-#     ConfirmationsStatusUpdater().process_deliveries(confirmed_confirmations)
-#
-#     # 3.1 Если были ошибки отправляем письмо
-#     bad_confirmations = repo.get_by_status("awaiting_confirmation")
-#     if bad_confirmations:
-#         loger.info(f"Отправляем письмо об ошибках")
-#         # mailer = ErrorMailer(
-#         #     bad_confirmations=bad_confirmations,
-#         #     to=RECIPIENT_ADMIN,
-#         #     smtp_user="MAILER_LOGIN",
-#         #     smtp_password="MAILER_PASSWORD",
-#         # )
-#         # mailer.send()
-#
-#
-#     # 4. Формируем файл для склада
-#     builder =  WarehouseFileBuilder(df=reader.ok_df,
-#                                     output_path=os.path.join(CONFIRMATIONS_DIR, 'warehouse_file.xlsx')
-#                                     )
-#     builder.save()
-#
-#     # 5. Получаем наклейки
-#
-#     # 6. Письмо складу (наклейки, файл подбора товаров)
-#     loger.info("=== Проверка подтверждений закончена ===")
 
 
 def main():
@@ -80,27 +22,14 @@ def main():
         folder_path=CONFIRMATIONS_DIR,
         mapping_file=os.path.join(SETTINGS_APP_DIR, "column_map.json")
     )
-
-    recorder = ConfirmationsRecorder()
-    recorder.process_confirmations(
-        ok_df=reader.ok_df,
-        refused_df=reader.bad_df,
-    )
-    print(reader.df_all.columns.tolist())
-
     repo = ConfirmationsRepository()
-    row = repo.get_all_items()
-    for r in row:
-        print(r)
+    recorder = ConfirmationsRecorder(repo)
+    recorder.record_from_dataframe(reader.df_all)
 
-    row = repo.get_all()
-    for r in row:
-        print(r)
 
     # ============================================================
     # 2. ОБНОВЛЕНИЕ СТАТУСОВ НА OZON (ship)
     # ============================================================
-
     updater = ConfirmationsStatusUpdater()
 
     # 2.1 Переводим заказы со статусом "confirmed" → "awaiting_delivery"
@@ -115,25 +44,32 @@ def main():
         logger.info(f"Повторная попытка перевода {len(error_orders)} заказов со статусом error")
         updater.process_deliveries(error_orders)
 
+
     # ============================================================
-    # 3. ЕСЛИ ОСТАЛИСЬ ПРОБЛЕМНЫЕ ПОДТВЕРЖДЕНИЯ — ГОТОВИМ УВЕДОМЛЕНИЕ
+    # 3. ЕСЛИ ОСТАЛИСЬ ПРОБЛЕМНЫЕ ПОДТВЕРЖДЕНИЯ — ГОТОВИМ УВЕДОМЛЕНИЕ (TODO)
     # ============================================================
 
-    remaining_errors = repo.get_by_status("error")
-    if remaining_errors:
-        logger.warning("Остались неподтверждённые заказы после повторной попытки")
+    # remaining_errors = repo.get_by_status("error")
+    # if remaining_errors:
+    #     logger.warning("Остались неподтверждённые заказы после повторной попытки")
         # mailer = ErrorMailer(...)
         # mailer.send()
+
 
     # ============================================================
     # 4. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
     # ============================================================
 
-    builder = WarehouseFileBuilder(
-        df=reader.ok_df,
-        output_path=os.path.join(CONFIRMATIONS_DIR, 'warehouse_file.xlsx')
-    )
-    builder.save()
+    good_items = repo.get_items_for_warehouse("awaiting_delivery")
+
+    if not good_items:
+        logger.info("Нет данных для формирования файла склада")
+    else:
+        builder = WarehouseFileBuilder(
+            rows=good_items,
+            output_path=os.path.join(CONFIRMATIONS_DIR, "warehouse_file.xlsx")
+        )
+        builder.save()
 
 
     # ============================================================
@@ -150,7 +86,13 @@ def main():
 
     logger.info("=== Проверка подтверждений завершена ===")
 
+    row = repo.get_all()
+    for r in row:
+        print(r)
+    print("--------------------------------------------")
+    row = repo.get_all_items()
+    for r in row:
+        print(r)
 
 if __name__ == "__main__":
     main()
-

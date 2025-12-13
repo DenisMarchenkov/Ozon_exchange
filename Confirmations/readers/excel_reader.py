@@ -102,6 +102,7 @@ class ConfirmationsReader:
 
                 order_from_column = str(unique_orders[0])
 
+                # подумать, нужна ли проверка [TODO]
                 if order_from_file != order_from_column:
                     logger.warning(
                         f"Файл {file.name}: несоответствие имени файла ({order_from_file}) "
