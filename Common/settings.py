@@ -22,6 +22,8 @@ COMMON_DIR = os.path.dirname(os.path.abspath(__file__))
 # .../Ozon_exchange
 BASE_DIR = os.path.dirname(COMMON_DIR)
 
+# .../Ozon_exchange/Archive
+ARCHIVE_DIR = os.path.join(BASE_DIR, "Archive")
 
 # ============================================================
 # 🔹 OZON API (ИЗ .env)
