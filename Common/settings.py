@@ -84,7 +84,7 @@ MAILER_SERVER_SMTP = "smtp.yandex.ru"
 MAILER_PORT_SMTP = "587"
 MAILER_LOGIN = os.getenv("MAILER_LOGIN")
 MAILER_PASSWORD = os.getenv("MAILER_PASSWORD_API")
-RECIPIENT_ADMIN = ["DenisMarchenkov@dfarm.ru"]
+RECIPIENT_ADMIN = ["Dmarchenkov@gmail.com"]
 
 
 # ============================================================

@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from email.utils import formataddr
 from pathlib import Path
 from typing import List
 from Common.logger import get_logger
 from Common.email_utils import send_email
+from Common.settings import MAILER_LOGIN, MAILER_PASSWORD, RECIPIENT_ADMIN
 
 logger = get_logger("BaseMailer")
 
@@ -14,16 +16,15 @@ class BaseMailer(ABC):
 
     def __init__(
         self,
-        to: List[str],
-        smtp_user: str,
-        smtp_password: str,
-        sender: str = None
+        to: List[str] = RECIPIENT_ADMIN,
+        smtp_user: str = MAILER_LOGIN,
+        smtp_password: str = MAILER_PASSWORD,
+        sender: str = "OrderGuard"
     ):
         self.to = to
         self.smtp_user = smtp_user
         self.smtp_password = smtp_password
-        self.sender = sender or smtp_user
-
+        self.sender = formataddr((sender, smtp_user))
     # -----------------------------------------------
     #           Методы, которые нужно определить
     # -----------------------------------------------

@@ -228,11 +228,11 @@ class ConfirmationsRepository:
             """, (confirmation_id,))
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
-    def get_items_by_status_confirmation(self, status: str) -> list[dict]:
+    def get_items_for_error_mailer(self, status: str) -> list[dict]:
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                SELECT ci.*
+                SELECT ci.*, c.id AS confirmation_id, c.posting_number, c.error_message, c.division_id
                 FROM confirmation_items AS ci
                 JOIN confirmations AS c
                     ON ci.confirmation_id = c.id
@@ -244,6 +244,7 @@ class ConfirmationsRepository:
     def get_items_for_warehouse(self, status: str) -> list[dict]:
         with self._get_conn() as conn:
             cur = conn.cursor()
+            # TODO передаем не верные данные в date_order и date_ship, нужно исправить
             cur.execute("""
                 SELECT
                     c.posting_number,

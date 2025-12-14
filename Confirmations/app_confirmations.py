@@ -1,6 +1,5 @@
 import os
 from Common.logger import get_logger
-from Common.settings import RECIPIENT_ADMIN
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
@@ -9,7 +8,7 @@ from Confirmations.services.file_manager import ArchiveFileManager
 from Confirmations.settings_app.settings_confirmations import (CONFIRMATIONS_DIR,
                                                                SETTINGS_APP_DIR,
                                                                ARCHIVE_DIR_CONFIRMATIONS)
-from Confirmations.readers.excel_reader import ConfirmationsReader
+from Confirmations.services.confirmations_reader import ConfirmationsReader
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 logger = get_logger("app_confirmations")
 
@@ -26,12 +25,14 @@ def main():
     )
     df = reader.read()
 
+
     # ============================================================
     # 2. ЗАПИСЬ ДАННЫХ В БД
     # ============================================================
     repo = ConfirmationsRepository()
     recorder = ConfirmationsRecorder(repo)
     recorder.record_from_dataframe(df)
+
 
     # ============================================================
     # 3. АРХИВАЦИЯ ОБРАБОТАННЫХ ФАЙЛОВ
@@ -61,20 +62,30 @@ def main():
 
 
     # ============================================================
-    # 5. ЕСЛИ ОСТАЛИСЬ ПРОБЛЕМНЫЕ ПОДТВЕРЖДЕНИЯ — ГОТОВИМ УВЕДОМЛЕНИЕ (TODO)
+    # 5. ЕСЛИ ОСТАЛИСЬ ПРОБЛЕМНЫЕ ПОДТВЕРЖДЕНИЯ — ГОТОВИМ УВЕДОМЛЕНИЕ
     # ============================================================
+    remaining_errors = repo.get_items_for_error_mailer("error")
 
-    remaining_errors = repo.get_by_status("error")
-    if remaining_errors:
+    if not remaining_errors:
+        logger.info("Нет данных для создания письма об ошибках после повторной попытки")
+    else:
         logger.warning("Остались неподтверждённые заказы после повторной попытки")
-        mailer = ErrorMailer(...)
+        mailer = ErrorMailer(error_rows=remaining_errors)
         mailer.send()
 
 
     # ============================================================
-    # 6. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
+    # TODO 6. ЕСЛИ ВЫЯВЛЕНЫ ОТКАЗАННЫЕ ПОЗИЦИИ - ГОТОВИМ УВЕДОМЛЕНИЕ
     # ============================================================
+    # refused_items = repo.get_list_postings_numbers_by_status("refused")
+    # if not refused_items:
+    #     pass
+    # else:
+    #     pass
 
+    # ============================================================
+    # 7. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
+    # ============================================================
     good_items = repo.get_items_for_warehouse("awaiting_delivery")
 
     if not good_items:
@@ -88,13 +99,13 @@ def main():
 
 
     # ============================================================
-    # 7. ГЕНЕРАЦИЯ НАКЛЕЕК (TODO)
+    # TODO 8. ГЕНЕРАЦИЯ НАКЛЕЕК
     # ============================================================
     # labels = LabelsGenerator(...)
     # labels.create()
 
     # ============================================================
-    # 8. ПИСЬМО СКЛАДУ (TODO)
+    # TODO 9. ПИСЬМО СКЛАДУ
     # ============================================================
     # mailer = WarehouseMailer(...)
     # mailer.send()
