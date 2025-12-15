@@ -47,7 +47,8 @@ class ConfirmationsRepository:
                     error_message TEXT,
                     source_file TEXT,
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    stickers TEXT DEFAULT 'not_ready'
                 )
             """)
 
@@ -82,6 +83,7 @@ class ConfirmationsRepository:
     @staticmethod
     def _row_to_dict(row: sqlite3.Row) -> dict:
         return {k: row[k] for k in row.keys()}
+
 
     # ------------------------------------------
     # Confirmations CRUD
@@ -163,6 +165,18 @@ class ConfirmationsRepository:
             row = cur.fetchone()
             return self._row_to_dict(row) if row else None
 
+    def get_postings_by_status_and_stickers_status(self, status: str, sticker_status: str) -> list[str] | None:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT posting_number
+            FROM confirmations
+            WHERE status=?
+            AND stickers=?
+            """, (status, sticker_status))
+            rows = cur.fetchall()
+            return [row['posting_number'] for row in rows]
+
     # ------------------------------------------
     # Items CRUD
     # ------------------------------------------
@@ -240,7 +254,6 @@ class ConfirmationsRepository:
             """, (status,))
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
-
     def get_items_for_warehouse(self, status: str) -> list[dict]:
         with self._get_conn() as conn:
             cur = conn.cursor()
@@ -262,3 +275,36 @@ class ConfirmationsRepository:
                 WHERE c.status = ?
             """, (status,))
             return [self._row_to_dict(r) for r in cur.fetchall()]
+
+    def get_items_by_statuses(
+            self,
+            confirmation_status: str,
+            item_status: str,
+    ) -> list[dict]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT
+                    ci.*,
+                    c.id AS confirmation_id,
+                    c.posting_number,
+                    c.division_id
+                FROM confirmation_items AS ci
+                JOIN confirmations AS c
+                    ON ci.confirmation_id = c.id
+                WHERE c.status = ?
+                  AND ci.item_status = ?
+            """, (confirmation_status, item_status))
+            return [self._row_to_dict(r) for r in cur.fetchall()]
+
+    # TODO нужно написать inspect_db.py в Common перенести в него
+    def get_all_tables(self) -> list[str]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name NOT LIKE 'sqlite_%'
+            """)
+            return [row[0] for row in cur.fetchall()]

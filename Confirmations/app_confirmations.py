@@ -3,13 +3,14 @@ from Common.logger import get_logger
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
-from Confirmations.services.error_mailer import ErrorMailer
+from Confirmations.services.confirmations_reader import ConfirmationsReader
+from Confirmations.services.mailer_error import ErrorMailer
+from Confirmations.services.mailer_shortage import ShortageMailer
+from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.file_manager import ArchiveFileManager
 from Confirmations.settings_app.settings_confirmations import (CONFIRMATIONS_DIR,
                                                                SETTINGS_APP_DIR,
                                                                ARCHIVE_DIR_CONFIRMATIONS)
-from Confirmations.services.confirmations_reader import ConfirmationsReader
-from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 logger = get_logger("app_confirmations")
 
 
@@ -71,20 +72,32 @@ def main():
     else:
         logger.warning("Остались неподтверждённые заказы после повторной попытки")
         mailer = ErrorMailer(error_rows=remaining_errors)
-        mailer.send()
+        # mailer.send()
 
 
     # ============================================================
-    # TODO 6. ЕСЛИ ВЫЯВЛЕНЫ ОТКАЗАННЫЕ ПОЗИЦИИ - ГОТОВИМ УВЕДОМЛЕНИЕ
+    # 6. ЕСЛИ ВЫЯВЛЕНЫ ОТКАЗАННЫЕ ПОЗИЦИИ - ГОТОВИМ УВЕДОМЛЕНИЕ
     # ============================================================
-    # refused_items = repo.get_list_postings_numbers_by_status("refused")
-    # if not refused_items:
-    #     pass
-    # else:
-    #     pass
+    refused_items = repo.get_items_by_statuses("awaiting_confirmation", "REFUSED")
+    if not refused_items:
+        logger.info("Нет данных для для создания письма о нехватке товара")
+    else:
+        logger.warning("Есть отказанные позиции")
+        mailer = ShortageMailer(shortage_rows=refused_items)
+        # mailer.send()
+
 
     # ============================================================
-    # 7. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
+    # TODO 7. ГЕНЕРАЦИЯ НАКЛЕЕК
+    # ============================================================
+    postings = repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "not_ready")
+    print(postings)
+    # labels = LabelsGenerator(...)
+    # labels.create()
+
+
+    # ============================================================
+    # 8. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
     # ============================================================
     good_items = repo.get_items_for_warehouse("awaiting_delivery")
 
@@ -99,12 +112,6 @@ def main():
 
 
     # ============================================================
-    # TODO 8. ГЕНЕРАЦИЯ НАКЛЕЕК
-    # ============================================================
-    # labels = LabelsGenerator(...)
-    # labels.create()
-
-    # ============================================================
     # TODO 9. ПИСЬМО СКЛАДУ
     # ============================================================
     # mailer = WarehouseMailer(...)
@@ -117,6 +124,10 @@ def main():
         print(r)
     print("--------------------------------------------")
     row = repo.get_all_items()
+    for r in row:
+        print(r)
+    print("--------------------------------------------")
+    row = repo.get_all_tables()
     for r in row:
         print(r)
 

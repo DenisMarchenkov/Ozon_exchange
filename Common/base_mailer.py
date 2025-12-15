@@ -40,6 +40,14 @@ class BaseMailer(ABC):
         """Можно переопределить, если есть вложения"""
         return []
 
+    def build_signature(self) -> str:
+        return (
+            "\n\n\n"
+            "OrderGuard\n"
+            "Система контроля заказов Ozon\n"
+            "Это письмо сформировано автоматически"
+        )
+
     # -----------------------------------------------
     #               Основной процесс отправки
     # -----------------------------------------------
@@ -48,11 +56,13 @@ class BaseMailer(ABC):
         body = self.build_body()
         attachments = self.build_attachments()
 
+        full_body = body + self.build_signature()
+
         logger.info(f"Отправка письма: {subject}")
 
         send_email(
             subject=subject,
-            body=body,
+            body=full_body,
             to=self.to,
             attachments=attachments,
             sender=self.sender,
