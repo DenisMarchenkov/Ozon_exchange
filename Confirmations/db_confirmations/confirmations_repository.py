@@ -48,7 +48,8 @@ class ConfirmationsRepository:
                     source_file TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
-                    stickers TEXT DEFAULT 'not_ready'
+                    stickers TEXT DEFAULT 'not_ready',
+                    stickers_error TEXT
                 )
             """)
 
@@ -177,10 +178,10 @@ class ConfirmationsRepository:
             rows = cur.fetchall()
             return [row['posting_number'] for row in rows]
 
+
     # ------------------------------------------
     # Items CRUD
     # ------------------------------------------
-
     def add_items_bulk(self, items: list[tuple]):
         """
         items:
@@ -254,7 +255,7 @@ class ConfirmationsRepository:
             """, (status,))
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
-    def get_items_for_warehouse(self, status: str) -> list[dict]:
+    def get_items_for_warehouse(self, confirmation_status: str, sticker_status: str) -> list[dict]:
         with self._get_conn() as conn:
             cur = conn.cursor()
             # TODO передаем не верные данные в date_order и date_ship, нужно исправить
@@ -273,7 +274,8 @@ class ConfirmationsRepository:
                 JOIN confirmations c
                     ON ci.confirmation_id = c.id
                 WHERE c.status = ?
-            """, (status,))
+                AND c.stickers = ?
+            """, (confirmation_status, sticker_status))
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
     def get_items_by_statuses(
@@ -308,3 +310,29 @@ class ConfirmationsRepository:
                   AND name NOT LIKE 'sqlite_%'
             """)
             return [row[0] for row in cur.fetchall()]
+
+
+    # ------------------------------------------
+    # Items CRUD
+    # ------------------------------------------
+    def update_stickers_status(
+            self,
+            posting_numbers: list[str],
+            status: str,
+            error_message: str | None = None
+    ):
+        if not posting_numbers:
+            return
+
+        placeholders = ",".join("?" for _ in posting_numbers)
+
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                UPDATE confirmations
+                SET
+                    stickers = ?,
+                    stickers_error = ?
+                WHERE posting_number IN ({placeholders})
+            """, [status, error_message, *posting_numbers])
+            conn.commit()

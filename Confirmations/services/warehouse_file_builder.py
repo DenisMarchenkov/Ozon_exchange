@@ -1,8 +1,11 @@
+import os.path
+from datetime import datetime
 from typing import Iterable
 
 import pandas as pd
 from pathlib import Path
 from Common.logger import get_logger
+from Confirmations.settings_app.settings_confirmations import ARCHIVE_DIR_WAREHOUSE
 
 logger = get_logger("Confirmations - WarehouseFileBuilder")
 
@@ -15,9 +18,9 @@ class WarehouseFileBuilder:
         rows: list[dict] — данные (обычно из БД)
     """
 
-    def __init__(self, rows: Iterable[dict], output_path: str | Path):
+    def __init__(self, rows: Iterable[dict]):
         self.rows = list(rows)
-        self.output_path = Path(output_path)
+        #self.output_path = Path(output_path)
 
         if not self.rows:
             logger.warning("WarehouseFileBuilder получил пустые данные")
@@ -136,15 +139,14 @@ class WarehouseFileBuilder:
             orders = self._make_orders_summary()
             items = self._make_items_summary()
             full = self._make_full_sheet()
+            filename = self._build_filename()
 
-            self.output_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with pd.ExcelWriter(self.output_path, engine="openpyxl") as writer:
+            with pd.ExcelWriter(filename, engine="openpyxl") as writer:
                 orders.to_excel(writer, sheet_name="Orders Summary", index=False)
                 items.to_excel(writer, sheet_name="Items by Brand", index=False)
                 full.to_excel(writer, sheet_name="Full Data", index=False)
 
-            logger.info(f"Файл для склада создан: {self.output_path}")
+            logger.info(f"Файл для склада создан: {filename}")
 
         except Exception:
             logger.exception("Ошибка при формировании Excel-файла")
@@ -160,3 +162,10 @@ class WarehouseFileBuilder:
                 f"Недостаточно данных для листа '{sheet_name}'. "
                 f"Отсутствуют колонки: {missing}"
             )
+
+    @staticmethod
+    def _build_filename() -> str:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        name = f"warehouse_file__{timestamp}.xlsx"
+        file_path = os.path.join(ARCHIVE_DIR_WAREHOUSE, name)
+        return file_path

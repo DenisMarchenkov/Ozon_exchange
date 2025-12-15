@@ -66,9 +66,21 @@ def send_request_with_retries(
                         get_fake_data("fake_response_order.json")
                     )
 
+                elif "posting/fbs/package-label/create" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        get_fake_data("fake_response_create_task_package_label.json")
+                    )
+
+                elif "posting/fbs/package-label/get" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        get_fake_data("fake_response_get_file_package_label.json")
+                    )
+
                 else:
                     response = FakeResponse.ok({"result": "test_ok"})
 
+
+                # response = FakeResponse.ok({"result": "test_ok"})
                 # response: Union[Response, FakeResponse] = FakeResponse.too_many_requests(retry_after=2)
                 # response: Union[Response, FakeResponse] = FakeResponse.server_error()
                 # response: Union[Response, FakeResponse] = FakeResponse.not_found()

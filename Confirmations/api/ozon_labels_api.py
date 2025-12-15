@@ -1,0 +1,93 @@
+import requests
+from typing import Iterable
+
+from Common.http_utils import send_request_with_retries
+from Common.logger import get_logger
+from Common.settings import CLIENT_ID, API_TOKEN
+
+logger = get_logger("OzonLabelsAPI")
+
+
+class OzonLabelsAPI:
+    """
+    Работа с API Ozon для генерации и получения наклеек (FBS).
+    Только HTTP, без ожиданий и бизнес-логики.
+    """
+
+    CREATE_URL = "https://api-seller.ozon.ru/v2/posting/fbs/package-label/create"
+    GET_URL = "https://api-seller.ozon.ru/v1/posting/fbs/package-label/get"
+
+    def __init__(self):
+        self.headers = {
+            "Client-Id": CLIENT_ID,
+            "Api-Key": API_TOKEN,
+            "Content-Type": "application/json",
+        }
+
+    # -------------------------------------------------
+    # Создание задачи
+    # -------------------------------------------------
+
+    def create_task(self, posting_numbers: Iterable[str]) -> str | None:
+        data = {"posting_number": list(posting_numbers)}
+
+        try:
+            resp = send_request_with_retries(
+                url=self.CREATE_URL,
+                method="POST",
+                headers=self.headers,
+                body=data,
+            )
+
+            if not resp:
+                return None
+
+            tasks = resp.get("result", {}).get("tasks", [])
+
+            if not tasks:
+                logger.error("Ozon не вернул tasks при создании наклеек")
+                return None
+
+            task_id = next(
+                (task['task_id'] for task in tasks if task['task_type'] == 'big_label'),
+                None)
+
+            if not task_id:
+                logger.error("task_id отсутствует в ответе Ozon")
+                return None
+
+            logger.info(f"Создана задача наклеек: task_id={task_id}")
+            return task_id
+
+        except requests.RequestException:
+            logger.exception("Ошибка при создании задачи наклеек")
+            return None
+
+    # -------------------------------------------------
+    # Проверка статуса
+    # -------------------------------------------------
+
+    def get_task_status(self, task_id: str) -> dict:
+        response = send_request_with_retries(
+            url=self.GET_URL,
+            method="POST",
+            headers=self.headers,
+            body={"task_id": task_id},
+        )
+
+        if not response:
+            return {"status": "error", "file_url": None}
+
+        result = response.get("result", {})
+        status = result.get("status")
+
+        if status == "completed":
+            return {
+                "status": "completed",
+                "file_url": result.get("file_url"),
+            }
+
+        if status in {"pending", "in_progress"}:
+            return {"status": status, "file_url": None}
+
+        return {"status": "error", "file_url": None}

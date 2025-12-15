@@ -4,6 +4,7 @@ from Confirmations.db_confirmations.confirmations_repository import Confirmation
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
 from Confirmations.services.confirmations_reader import ConfirmationsReader
+from Confirmations.services.labels_generatior import LabelsGenerator
 from Confirmations.services.mailer_error import ErrorMailer
 from Confirmations.services.mailer_shortage import ShortageMailer
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
@@ -88,26 +89,20 @@ def main():
 
 
     # ============================================================
-    # TODO 7. ГЕНЕРАЦИЯ НАКЛЕЕК
+    # 7. ГЕНЕРАЦИЯ НАКЛЕЕК (USE CASE)
     # ============================================================
-    postings = repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "not_ready")
-    print(postings)
-    # labels = LabelsGenerator(...)
-    # labels.create()
+    LabelsGenerator().generate()
 
 
     # ============================================================
     # 8. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
     # ============================================================
-    good_items = repo.get_items_for_warehouse("awaiting_delivery")
+    good_items = repo.get_items_for_warehouse("awaiting_delivery", "ready")
 
     if not good_items:
         logger.info("Нет данных для формирования файла склада")
     else:
-        builder = WarehouseFileBuilder(
-            rows=good_items,
-            output_path=os.path.join(CONFIRMATIONS_DIR, "warehouse_file.xlsx")
-        )
+        builder = WarehouseFileBuilder(rows=good_items)
         builder.save()
 
 
