@@ -1,4 +1,3 @@
-import os.path
 from datetime import datetime
 from typing import Iterable
 
@@ -133,20 +132,22 @@ class WarehouseFileBuilder:
     # ----------------------------------------------------
     #  Сохранение Excel
     # ----------------------------------------------------
-    def save(self):
+    def build(self) -> Path:
         try:
-            # 👉 СНАЧАЛА строим все листы
             orders = self._make_orders_summary()
             items = self._make_items_summary()
             full = self._make_full_sheet()
-            filename = self._build_filename()
 
-            with pd.ExcelWriter(filename, engine="openpyxl") as writer:
+            file_path = self._build_filename()
+
+            with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
                 orders.to_excel(writer, sheet_name="Orders Summary", index=False)
                 items.to_excel(writer, sheet_name="Items by Brand", index=False)
                 full.to_excel(writer, sheet_name="Full Data", index=False)
 
-            logger.info(f"Файл для склада создан: {filename}")
+            logger.info(f"Файл для склада создан: {file_path}")
+
+            return file_path
 
         except Exception:
             logger.exception("Ошибка при формировании Excel-файла")
@@ -164,8 +165,7 @@ class WarehouseFileBuilder:
             )
 
     @staticmethod
-    def _build_filename() -> str:
+    def _build_filename() -> Path:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         name = f"warehouse_file__{timestamp}.xlsx"
-        file_path = os.path.join(ARCHIVE_DIR_WAREHOUSE, name)
-        return file_path
+        return Path(ARCHIVE_DIR_WAREHOUSE) / name

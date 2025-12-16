@@ -1,8 +1,11 @@
-import requests
+import time
 from pathlib import Path
 from datetime import datetime
 
+import requests
+
 from Common.logger import get_logger
+from Common.settings import DEV_MODE
 from Confirmations.settings_app.settings_confirmations import ARCHIVE_DIR_LABELS
 
 logger = get_logger("LabelsFileManager")
@@ -21,32 +24,52 @@ class LabelsFileManager:
     @staticmethod
     def _get_labels_dir() -> Path:
         """
-        Определяет и создаёт папку /Labels в корне проекта.
+        Определяет и создаёт папку для хранения наклеек.
         """
-        return ARCHIVE_DIR_LABELS
+        path = Path(ARCHIVE_DIR_LABELS)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
     # -------------------------------------------------
 
     def save(self, file_url: str) -> Path:
-        """
-        Скачивает PDF по URL и сохраняет в папку Labels.
-        """
-        filename = self._build_filename()
-        file_path = self.base_dir / filename
+        file_path = self.base_dir / self._build_filename()
 
-        try:
-            response = requests.get(file_url, timeout=30)
-            response.raise_for_status()
-
-            with open(file_path, "wb") as f:
-                f.write(response.content)
-
-            logger.info(f"Файл наклеек сохранён: {file_path}")
+        if DEV_MODE:
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            if not file_path.exists():
+                file_path.write_bytes(b"%PDF-1.4 fake pdf content\n%%EOF")
+            logger.info(f"[DEV MODE] Файл наклеек создан фиктивно: {file_path}")
             return file_path
 
-        except requests.RequestException:
-            logger.exception("Ошибка при скачивании PDF с наклейками")
-            raise
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+        }
+
+        for attempt in range(5):
+            try:
+                response = requests.get(
+                    file_url,
+                    headers=headers,
+                    timeout=30,
+                )
+
+                if response.status_code == 200:
+                    file_path.write_bytes(response.content)
+                    logger.info(f"Файл наклеек сохранён: {file_path}")
+                    return file_path
+
+                logger.warning(
+                    f"Попытка {attempt + 1}: "
+                    f"статус {response.status_code}, ожидание..."
+                )
+
+            except requests.RequestException as e:
+                logger.warning(f"Попытка {attempt + 1}: ошибка {e}")
+
+            time.sleep(3)
+
+        raise RuntimeError(f"Не удалось скачать PDF наклеек: {file_url}")
 
     # -------------------------------------------------
 

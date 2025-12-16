@@ -1,9 +1,13 @@
 import os
+
 from Common.logger import get_logger
+from Common.settings import DB_PATH
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
+from Confirmations.db_confirmations.dispatchs_repository import DispatchRepository
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
 from Confirmations.services.confirmations_reader import ConfirmationsReader
+from Confirmations.services.dispatch_prepare import DispatchPrepareService
 from Confirmations.services.labels_generatior import LabelsGenerator
 from Confirmations.services.mailer_error import ErrorMailer
 from Confirmations.services.mailer_shortage import ShortageMailer
@@ -12,6 +16,8 @@ from Confirmations.services.file_manager import ArchiveFileManager
 from Confirmations.settings_app.settings_confirmations import (CONFIRMATIONS_DIR,
                                                                SETTINGS_APP_DIR,
                                                                ARCHIVE_DIR_CONFIRMATIONS)
+from Confirmations.utils.time import now_iso
+
 logger = get_logger("app_confirmations")
 
 
@@ -88,29 +94,65 @@ def main():
         # mailer.send()
 
 
-    # ============================================================
-    # 7. ГЕНЕРАЦИЯ НАКЛЕЕК (USE CASE)
-    # ============================================================
-    LabelsGenerator().generate()
+    # # ============================================================
+    # # 7. ГЕНЕРАЦИЯ ФАЙЛОВ НА ОТПРАВКУ
+    # # ============================================================
+    # dispatch_id = now_iso()
+    # if repo.is_sent(dispatch_id):
+    #     logger.info(f"Dispatch {dispatch_id} уже отправлен складу — выходим")
+    #     return
+    #
+    # # 7.1 генерация наклеек
+    # label_path = LabelsGenerator().download()
+    # if label_path.exists():
+    #     repo.add_file(
+    #         dispatch_id=dispatch_id,
+    #         file_type = "LABEL",
+    #         file_path=label_path,
+    #     )
+    #
+    # # 7.2 генерация файла для склада
+    # good_items = repo.get_items_for_warehouse("awaiting_delivery", "ready")
+    #
+    # if not good_items:
+    #     logger.info("Нет данных для формирования файла склада")
+    # else:
+    #     builder = WarehouseFileBuilder(rows=good_items)
+    #     warehouse_path = builder.build()
+    #
+    #     if warehouse_path.exists():
+    #         repo.add_file(
+    #             dispatch_id=dispatch_id,
+    #             file_type="WAREHOUSE",
+    #             file_path=warehouse_path
+    #         )
 
 
     # ============================================================
-    # 8. ГЕНЕРАЦИЯ ФАЙЛА ДЛЯ СКЛАДА
+    # 7. ГЕНЕРАЦИЯ ФАЙЛОВ НА ОТПРАВКУ
     # ============================================================
-    good_items = repo.get_items_for_warehouse("awaiting_delivery", "ready")
+    # Подключение к репозиториям
+    dispatch_repo = DispatchRepository(DB_PATH)
+    confirmations_repo = ConfirmationsRepository(DB_PATH)
 
-    if not good_items:
-        logger.info("Нет данных для формирования файла склада")
-    else:
-        builder = WarehouseFileBuilder(rows=good_items)
-        builder.save()
+    # 7.1 Создаем записи в бд, генерируем файл склада, скачиваем наклейки
+    prepare_service = DispatchPrepareService(
+        dispatch_repo=dispatch_repo,
+        confirmations_repo=confirmations_repo,
+        labels_generator=LabelsGenerator(),
+        warehouse_builder_cls=WarehouseFileBuilder
+    )
+
+    dispatch_id = now_iso()
+    prepare_service.prepare(dispatch_id)
+
+
 
 
     # ============================================================
-    # TODO 9. ПИСЬМО СКЛАДУ
+    # TODO 8. ОТПРАВКА ПИСЬМА НА СКЛАД
     # ============================================================
-    # mailer = WarehouseMailer(...)
-    # mailer.send()
+
 
     logger.info("=== Проверка подтверждений завершена ===")
 
@@ -118,13 +160,21 @@ def main():
     for r in row:
         print(r)
     print("--------------------------------------------")
+
     row = repo.get_all_items()
     for r in row:
         print(r)
     print("--------------------------------------------")
-    row = repo.get_all_tables()
+
+    row = dispatch_repo.get_all_dispatch()
     for r in row:
         print(r)
+    print("--------------------------------------------")
+
+    row = dispatch_repo.get_all_files()
+    for r in row:
+        print(r)
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 import sqlite3
+from pathlib import Path
 
-from typing import Any
+from typing import Any, List, Dict
 from Common.settings import DB_PATH
 
 
@@ -75,6 +76,17 @@ class ConfirmationsRepository:
                 )
             """)
 
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS dispatch_files (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dispatch_id TEXT NOT NULL,
+                    file_type TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    sent_to_warehouse INTEGER DEFAULT 0
+                )
+            """)
+
             conn.commit()
 
     # ------------------------------------------
@@ -117,7 +129,6 @@ class ConfirmationsRepository:
         updated_at: str,
         error_message: str | None = None
     ):
-        #now = self._now_iso()
         with self._get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
@@ -336,3 +347,77 @@ class ConfirmationsRepository:
                 WHERE posting_number IN ({placeholders})
             """, [status, error_message, *posting_numbers])
             conn.commit()
+
+
+
+    # # ------------------------------------------
+    # # dispatch CRUD
+    # # ------------------------------------------
+    #
+    #
+    # # -----------------------------
+    # # Добавить файл
+    # # -----------------------------
+    # def add_file(self, dispatch_id: str, file_type: str, file_path: Path):
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         cur.execute("""
+    #             INSERT INTO dispatch_files (dispatch_id, file_type, file_path)
+    #             VALUES (?, ?, ?)
+    #         """, (dispatch_id, file_type, str(file_path)))
+    #         conn.commit()
+    #
+    # # -----------------------------
+    # # Получить файлы dispatch
+    # # -----------------------------
+    # def get_files(self, dispatch_id: str) -> List[Dict]:
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         cur.execute("""
+    #             SELECT file_type, file_path
+    #             FROM dispatch_files
+    #             WHERE dispatch_id=?
+    #         """, (dispatch_id,))
+    #         rows = cur.fetchall()
+    #
+    #     return [
+    #         {"file_type": r[0], "file_path": Path(r[1])}
+    #         for r in rows
+    #     ]
+    #
+    # def get_all_files(self) -> List[Dict]:
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         cur.execute("""
+    #         SELECT *
+    #         FROM dispatch_files
+    #         ORDER BY id DESC
+    #         """)
+    #         return [self._row_to_dict(r) for r in cur.fetchall()]
+    #
+    # # -----------------------------
+    # # Пометить как отправленные
+    # # -----------------------------
+    # def mark_sent(self, dispatch_id: str):
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         cur.execute("""
+    #             UPDATE dispatch_files
+    #             SET sent_to_warehouse=1
+    #             WHERE dispatch_id=?
+    #         """, (dispatch_id,))
+    #         conn.commit()
+    #
+    # # -----------------------------
+    # # Проверка: уже отправляли?
+    # # -----------------------------
+    # def is_sent(self, dispatch_id: str) -> bool:
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         cur.execute("""
+    #             SELECT COUNT(*)
+    #             FROM dispatch_files
+    #             WHERE dispatch_id=?
+    #             AND sent_to_warehouse=1
+    #         """, (dispatch_id,))
+    #         return cur.fetchone()[0] > 0

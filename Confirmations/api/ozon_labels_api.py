@@ -38,18 +38,18 @@ class OzonLabelsAPI:
                 headers=self.headers,
                 body=data,
             )
-
             if not resp:
+                logger.error("Ozon не вернул response при создании наклеек")
                 return None
 
-            tasks = resp.get("result", {}).get("tasks", [])
 
+            tasks = resp.get("result", {}).get("tasks", [])
             if not tasks:
                 logger.error("Ozon не вернул tasks при создании наклеек")
                 return None
 
             task_id = next(
-                (task['task_id'] for task in tasks if task['task_type'] == 'big_label'),
+                (task['task_id'] for task in tasks if task['task_type'] == 'small_label'),
                 None)
 
             if not task_id:
@@ -76,18 +76,21 @@ class OzonLabelsAPI:
         )
 
         if not response:
-            return {"status": "error", "file_url": None}
+            return {"status": "error"}
 
         result = response.get("result", {})
         status = result.get("status")
+        file_url = result.get("file_url")
 
-        if status == "completed":
+        if status == "completed" and file_url:
             return {
                 "status": "completed",
-                "file_url": result.get("file_url"),
+                "file_url": file_url,
             }
 
-        if status in {"pending", "in_progress"}:
-            return {"status": status, "file_url": None}
+        if status in {"pending", "in_progress", "completed"}:
+            # completed, но без файла — ЖДЁМ
+            return {"status": "in_progress"}
 
-        return {"status": "error", "file_url": None}
+        return {"status": "error"}
+

@@ -1,8 +1,6 @@
 import time
-from pathlib import Path
 
 from Common.logger import get_logger
-from Common.settings import DEV_MODE
 from Confirmations.api.ozon_labels_api import OzonLabelsAPI
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.files.labels_file_manager import LabelsFileManager
@@ -25,7 +23,7 @@ class LabelsGenerator:
 
     # -------------------------------------------------
 
-    def generate(self):
+    def download(self):
         postings = []
 
         postings += self.repo.get_postings_by_status_and_stickers_status(
@@ -64,16 +62,14 @@ class LabelsGenerator:
 
         # 4. обработка результата
         if result["status"] == "completed" and result.get("file_url"):
-            if DEV_MODE:
-                logger.info(f"Наклейки сохранены")
-            else:
-                path = self.files.save(result["file_url"])
-                logger.info(f"Наклейки сохранены: {path}")
-            logger.info(f"Наклейки сохранены")
+            path = self.files.save(result["file_url"])
+            logger.info(f"Наклейки сохранены: {path}")
             self.repo.update_stickers_status(postings, "ready")
+            return path
         else:
             error = result.get("error", "Ошибка генерации наклеек")
             self.repo.update_stickers_status(postings, "error", error)
+            return None
 
     # -------------------------------------------------
 
