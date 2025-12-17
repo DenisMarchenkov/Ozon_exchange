@@ -76,4 +76,4 @@ class LabelsFileManager:
     @staticmethod
     def _build_filename() -> str:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        return f"labels_{timestamp}.pdf"
+        return f"labels_file__{timestamp}.pdf"

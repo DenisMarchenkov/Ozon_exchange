@@ -94,58 +94,23 @@ def main():
         # mailer.send()
 
 
-    # # ============================================================
-    # # 7. ГЕНЕРАЦИЯ ФАЙЛОВ НА ОТПРАВКУ
-    # # ============================================================
-    # dispatch_id = now_iso()
-    # if repo.is_sent(dispatch_id):
-    #     logger.info(f"Dispatch {dispatch_id} уже отправлен складу — выходим")
-    #     return
-    #
-    # # 7.1 генерация наклеек
-    # label_path = LabelsGenerator().download()
-    # if label_path.exists():
-    #     repo.add_file(
-    #         dispatch_id=dispatch_id,
-    #         file_type = "LABEL",
-    #         file_path=label_path,
-    #     )
-    #
-    # # 7.2 генерация файла для склада
-    # good_items = repo.get_items_for_warehouse("awaiting_delivery", "ready")
-    #
-    # if not good_items:
-    #     logger.info("Нет данных для формирования файла склада")
-    # else:
-    #     builder = WarehouseFileBuilder(rows=good_items)
-    #     warehouse_path = builder.build()
-    #
-    #     if warehouse_path.exists():
-    #         repo.add_file(
-    #             dispatch_id=dispatch_id,
-    #             file_type="WAREHOUSE",
-    #             file_path=warehouse_path
-    #         )
-
-
     # ============================================================
     # 7. ГЕНЕРАЦИЯ ФАЙЛОВ НА ОТПРАВКУ
     # ============================================================
-    # Подключение к репозиториям
     dispatch_repo = DispatchRepository(DB_PATH)
     confirmations_repo = ConfirmationsRepository(DB_PATH)
-
-    # 7.1 Создаем записи в бд, генерируем файл склада, скачиваем наклейки
+    labels_generator = LabelsGenerator()
     prepare_service = DispatchPrepareService(
         dispatch_repo=dispatch_repo,
         confirmations_repo=confirmations_repo,
-        labels_generator=LabelsGenerator(),
+        labels_generator=labels_generator,
         warehouse_builder_cls=WarehouseFileBuilder
     )
 
     dispatch_id = now_iso()
     prepare_service.prepare(dispatch_id)
 
+    dispatch = dispatch_repo.get_dispatch(dispatch_id)
 
 
 
