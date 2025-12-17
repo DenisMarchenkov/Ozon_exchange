@@ -128,7 +128,7 @@ class ConfirmationsRecorder:
             # 5. Финальный статус подтверждения
             # -------------------------------------------------
             final_status = "awaiting_confirmation" if has_refused else "confirmed"
-            self.repo.update_status(posting_number, final_status, now_iso())
+            self.repo.update_status(posting_number, final_status)
 
             logger.info(
                 f"{posting_number} обработан, итоговый статус: {final_status}"

@@ -3,7 +3,7 @@ import os
 from Common.logger import get_logger
 from Common.settings import DB_PATH
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
-from Confirmations.db_confirmations.dispatchs_repository import DispatchRepository
+from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
 from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
 from Confirmations.services.confirmations_reader import ConfirmationsReader
@@ -85,7 +85,7 @@ def main():
     # ============================================================
     # 6. ЕСЛИ ВЫЯВЛЕНЫ ОТКАЗАННЫЕ ПОЗИЦИИ - ГОТОВИМ УВЕДОМЛЕНИЕ
     # ============================================================
-    refused_items = repo.get_items_by_statuses("awaiting_confirmation", "REFUSED")
+    refused_items = repo.get_items_by_statuses_conf_and_item("awaiting_confirmation", "REFUSED")
     if not refused_items:
         logger.info("Нет данных для для создания письма о нехватке товара")
     else:
@@ -97,6 +97,7 @@ def main():
     # ============================================================
     # 7. ГЕНЕРАЦИЯ ФАЙЛОВ НА ОТПРАВКУ
     # ============================================================
+    dispatch_id = f"dispatch_{now_iso()}"
     dispatch_repo = DispatchRepository(DB_PATH)
     confirmations_repo = ConfirmationsRepository(DB_PATH)
     labels_generator = LabelsGenerator()
@@ -107,10 +108,26 @@ def main():
         warehouse_builder_cls=WarehouseFileBuilder
     )
 
-    dispatch_id = now_iso()
-    prepare_service.prepare(dispatch_id)
+    # ЯВНО выбираем postings
+    posting_numbers = confirmations_repo.get_postings_by_status_and_stickers_status(
+        status="awaiting_delivery",
+        stickers_status="not_ready",
+    )
 
-    dispatch = dispatch_repo.get_dispatch(dispatch_id)
+
+    if not posting_numbers:
+        logger.info("Нет postings для формирования dispatch")
+        return
+
+    logger.info(f"Найдено postings: {len(posting_numbers)}")
+
+    # Подготовка dispatch
+    prepare_service.prepare(
+        dispatch_id=dispatch_id,
+        posting_numbers=posting_numbers,
+    )
+
+    logger.info(f"Dispatch {dispatch_id} подготовлен")
 
 
 
@@ -121,25 +138,30 @@ def main():
 
     logger.info("=== Проверка подтверждений завершена ===")
 
-    row = repo.get_all()
-    for r in row:
-        print(r)
-    print("--------------------------------------------")
-
-    row = repo.get_all_items()
-    for r in row:
-        print(r)
-    print("--------------------------------------------")
-
-    row = dispatch_repo.get_all_dispatch()
-    for r in row:
-        print(r)
-    print("--------------------------------------------")
-
-    row = dispatch_repo.get_all_files()
-    for r in row:
-        print(r)
-
 
 if __name__ == "__main__":
     main()
+
+    repo_conf = ConfirmationsRepository(DB_PATH)
+    repo_disp = DispatchRepository(DB_PATH)
+    row = repo_conf.get_all()
+
+    for r in row:
+        print(r)
+    print("--------------------------------------------")
+
+    row = repo_conf.get_all_items()
+    for r in row:
+        print(r)
+    print("--------------------------------------------")
+
+    row = repo_disp.get_all_dispatch()
+    for r in row:
+        print(r)
+    print("--------------------------------------------")
+
+    row = repo_disp.get_all_files()
+    for r in row:
+        print(r)
+    print("--------------------------------------------")
+

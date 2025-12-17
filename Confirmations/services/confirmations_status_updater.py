@@ -29,10 +29,12 @@ class ConfirmationsStatusUpdater:
                 logger.exception(f"{pn}: Внутренняя ошибка обработки")
             # ok = False # для тестов
             if ok:
-                self.repo.update_status(pn, "awaiting_delivery", now_iso())
+                #self.repo.update_status(pn, "awaiting_delivery", now_iso())
+                self.repo.update_status(pn, "awaiting_delivery")
                 logger.info(f"{pn}: статус обновлён в БД")
             else:
-                self.repo.update_status(pn, "error", now_iso(), err,)
+                #self.repo.update_status(pn, "error", now_iso(), err,)
+                self.repo.update_status(pn, "error")
                 logger.error(f"{pn}: ошибка ship — {err}")
 
         logger.info("Обновление статусов завершено")

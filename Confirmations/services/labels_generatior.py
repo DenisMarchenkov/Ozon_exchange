@@ -16,9 +16,12 @@ class LabelsGenerator:
         self.repo = ConfirmationsRepository()
         self.files = LabelsFileManager()
 
-    def download(self) -> Path | None:
-        postings = self.repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "not_ready")
-        postings += self.repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "error")
+    def download(self, dispatch_id) -> Path | None:
+        #postings = self.repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "not_ready")
+        #postings += self.repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "error")
+
+        postings = self.repo.get_postings_by_dispatch(dispatch_id)
+
         postings = list(set(postings))
 
         if not postings:
