@@ -5,7 +5,7 @@ from Confirmations.api.ozon_labels_api import OzonLabelsAPI
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.files.labels_file_manager import LabelsFileManager
 
-logger = get_logger("LabelsGenerator")
+logger = get_logger(__name__)
 
 class LabelsGenerator:
     MAX_WAIT_TIME = 120

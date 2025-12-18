@@ -4,7 +4,7 @@ import shutil
 
 from Common.logger import get_logger
 
-logger = get_logger("FileManager")
+logger = get_logger(__name__)
 
 
 class ArchiveFileManager:

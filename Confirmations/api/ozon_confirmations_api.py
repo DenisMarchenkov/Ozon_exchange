@@ -2,7 +2,7 @@ from Common.logger import get_logger
 from Common.settings import CLIENT_ID, API_TOKEN
 from Common.http_utils import send_request_with_retries
 
-logger = get_logger("OzonConfirmationsAPI")
+logger = get_logger(__name__)
 
 
 class OzonAPIError(Exception):

@@ -6,7 +6,7 @@ import datetime
 from Common.logger import get_logger
 from Common.settings import BASE_DIR
 
-logger = get_logger("Common")
+logger = get_logger(__name__)
 
 def copy_file_with_timestamp(src_file, dest_folder):
     if not os.path.isfile(src_file):

@@ -6,7 +6,7 @@ from pathlib import Path
 from Common.logger import get_logger
 from Confirmations.settings_app.settings_confirmations import ARCHIVE_DIR_WAREHOUSE
 
-logger = get_logger("Confirmations - WarehouseFileBuilder")
+logger = get_logger(__name__)
 
 
 class WarehouseFileBuilder:

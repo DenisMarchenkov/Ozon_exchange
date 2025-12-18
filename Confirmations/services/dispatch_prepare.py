@@ -3,7 +3,7 @@
 # from Common.logger import get_logger
 # from Confirmations.utils.time import now_iso
 #
-# logger = get_logger("DispatchPrepareService")
+# logger = get_logger(__name__)
 #
 # class DispatchPrepareService:
 #     def __init__(self, dispatch_repo: DispatchRepository, confirmations_repo, labels_generator, warehouse_builder_cls):
@@ -41,7 +41,7 @@ from pathlib import Path
 from Common.logger import get_logger
 from Confirmations.utils.time import now_iso
 
-logger = get_logger("DispatchPrepareService")
+logger = get_logger(__name__)
 
 
 class DispatchPrepareService:
@@ -62,6 +62,8 @@ class DispatchPrepareService:
 
         if not posting_numbers:
             raise ValueError("Нельзя подготовить dispatch без postings")
+
+        REQUIRED_FILE_TYPES = {"LABEL", "WAREHOUSE"}
 
         # 1. Создаём dispatch (если нет)
         if not self.dispatch_repo.exists(dispatch_id):
@@ -91,6 +93,18 @@ class DispatchPrepareService:
                     )
 
             # 5. Финальный статус
+            file_types = set(
+                self.dispatch_repo.get_file_types(dispatch_id)
+            )
+
+            missing = REQUIRED_FILE_TYPES - file_types
+            if missing:
+                logger.error(f"Dispatch {dispatch_id} не готов. Отсутствуют файлы: {', '.join(missing)}")
+                raise RuntimeError(
+                    f"Dispatch {dispatch_id} не готов. "
+                    f"Отсутствуют файлы: {', '.join(missing)}"
+                )
+
             self.dispatch_repo.update_status(dispatch_id, "PREPARED")
 
         except Exception:

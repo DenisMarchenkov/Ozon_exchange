@@ -1,24 +1,29 @@
 import os
+import sys
 
 from Common.logger import get_logger
 from Common.settings import DB_PATH
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
-from Confirmations.services.confirmations_recorder import ConfirmationsRecorder
-from Confirmations.services.confirmations_status_updater import ConfirmationsStatusUpdater
-from Confirmations.services.confirmations_reader import ConfirmationsReader
+from Confirmations.services.dispatch.DispatchRetryService import DispatchRetryService
+from Confirmations.services.confirmations.confirmations_recorder import ConfirmationsRecorder
+from Confirmations.services.confirmations.confirmations_status_updater import ConfirmationsStatusUpdater
+from Confirmations.services.confirmations.confirmations_reader import ConfirmationsReader
 from Confirmations.services.dispatch_prepare import DispatchPrepareService
 from Confirmations.services.labels_generatior import LabelsGenerator
-from Confirmations.services.mailer_error import ErrorMailer
-from Confirmations.services.mailer_shortage import ShortageMailer
+from Confirmations.services.mailers.mailer_dispatch import DispatchMailer
+from Confirmations.services.mailers.mailer_error import ErrorMailer
+from Confirmations.services.mailers.mailer_shortage import ShortageMailer
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.file_manager import ArchiveFileManager
 from Confirmations.settings_app.settings_confirmations import (CONFIRMATIONS_DIR,
                                                                SETTINGS_APP_DIR,
                                                                ARCHIVE_DIR_CONFIRMATIONS)
 from Confirmations.utils.time import now_iso
+from Confirmations.services.dispatch.DispatchPrepareService import  DispatchPrepareService
+from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
 
-logger = get_logger("app_confirmations")
+logger = get_logger(__name__)
 
 
 def main():
@@ -97,44 +102,83 @@ def main():
     # ============================================================
     # 7. ГЕНЕРАЦИЯ ФАЙЛОВ НА ОТПРАВКУ
     # ============================================================
+    # dispatch_id = f"dispatch_{now_iso()}"
+    # dispatch_repo = DispatchRepository(DB_PATH)
+    # confirmations_repo = ConfirmationsRepository(DB_PATH)
+    # labels_generator = LabelsGenerator()
+    # prepare_service = DispatchPrepareService(
+    #     dispatch_repo=dispatch_repo,
+    #     confirmations_repo=confirmations_repo,
+    #     labels_generator=labels_generator,
+    #     warehouse_builder_cls=WarehouseFileBuilder
+    # )
+    #
+    # # ЯВНО выбираем postings
+    # posting_numbers = confirmations_repo.get_postings_by_status_and_stickers_status(
+    #     status="awaiting_delivery",
+    #     stickers_status="not_ready",
+    # )
+    #
+    #
+    # if not posting_numbers:
+    #     logger.info("Нет postings для формирования dispatch")
+    #     return
+    #
+    # logger.info(f"Найдено postings: {len(posting_numbers)}")
+    #
+    # # Подготовка dispatch
+    # prepare_service.prepare(
+    #     dispatch_id=dispatch_id,
+    #     posting_numbers=posting_numbers,
+    # )
+    #
+    # logger.info(f"Dispatch {dispatch_id} подготовлен")
+
     dispatch_id = f"dispatch_{now_iso()}"
+
+    # --- Репозитории ---
     dispatch_repo = DispatchRepository(DB_PATH)
     confirmations_repo = ConfirmationsRepository(DB_PATH)
+
+    # --- Инфраструктура ---
     labels_generator = LabelsGenerator()
-    prepare_service = DispatchPrepareService(
+
+    # --- Сервисы ---
+    files_service = DispatchFilesService(
         dispatch_repo=dispatch_repo,
         confirmations_repo=confirmations_repo,
         labels_generator=labels_generator,
-        warehouse_builder_cls=WarehouseFileBuilder
+        warehouse_builder_cls=WarehouseFileBuilder,
     )
 
-    # ЯВНО выбираем postings
-    posting_numbers = confirmations_repo.get_postings_by_status_and_stickers_status(
-        status="awaiting_delivery",
-        stickers_status="not_ready",
+    if "--retry" in sys.argv:
+        retry_service = DispatchRetryService(
+            dispatch_repo=dispatch_repo,
+            files_service=files_service,
+        )
+        retry_service.retry_failed()
+
+
+    prepare_service = DispatchPrepareService(
+        dispatch_repo=dispatch_repo,
+        confirmations_repo=confirmations_repo,
+        files_service=files_service,
     )
 
+    # --- Запуск ---
+    prepare_service.prepare(dispatch_id)
 
-    if not posting_numbers:
-        logger.info("Нет postings для формирования dispatch")
-        return
-
-    logger.info(f"Найдено postings: {len(posting_numbers)}")
-
-    # Подготовка dispatch
-    prepare_service.prepare(
-        dispatch_id=dispatch_id,
-        posting_numbers=posting_numbers,
-    )
-
-    logger.info(f"Dispatch {dispatch_id} подготовлен")
-
+    logger.info(f"Dispatch {dispatch_id} завершён")
 
 
     # ============================================================
-    # TODO 8. ОТПРАВКА ПИСЬМА НА СКЛАД
+    # 8. ОТПРАВКА ПИСЬМА НА СКЛАД
     # ============================================================
-
+    dispatch_for_send = dispatch_repo.get_files_by_status_dispatch(status="PREPARED")
+    if dispatch_for_send:
+        mailer = DispatchMailer(dispatch_for_send)
+        # mailer.send()
+        dispatch_repo.update_status(dispatch_id, "SHIPPED_TO_STOCK")
 
     logger.info("=== Проверка подтверждений завершена ===")
 
@@ -165,3 +209,5 @@ if __name__ == "__main__":
         print(r)
     print("--------------------------------------------")
 
+    disp = repo_disp.get_files("dispatch_2025-12-18T08:23:12+00:00")
+    print(disp)

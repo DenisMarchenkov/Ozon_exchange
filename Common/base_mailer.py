@@ -6,7 +6,7 @@ from Common.logger import get_logger
 from Common.email_utils import send_email
 from Common.settings import MAILER_LOGIN, MAILER_PASSWORD, RECIPIENT_ADMIN
 
-logger = get_logger("BaseMailer")
+logger = get_logger(__name__)
 
 
 class BaseMailer(ABC):

@@ -8,8 +8,7 @@ from Common.logger import get_logger
 from Common.settings import DEV_MODE
 from Confirmations.settings_app.settings_confirmations import ARCHIVE_DIR_LABELS
 
-logger = get_logger("LabelsFileManager")
-
+logger = get_logger(__name__)
 
 class LabelsFileManager:
     """

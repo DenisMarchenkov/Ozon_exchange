@@ -314,6 +314,17 @@ class DispatchRepository:
 
             return rows
 
+    def get_dispatch_id_by_status(self, status: str) -> List[Dict]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT id
+            FROM dispatch
+            WHERE status = ?
+            """, (status,))
+            return [dict(row) for row in cur.fetchall()]
+
+
     # ------------------------------
     # Files
     # ------------------------------
@@ -362,6 +373,28 @@ class DispatchRepository:
             FROM dispatch_files
             """)
             return [dict(row) for row in cur.fetchall()]
+
+    def get_file_types(self, dispatch_id: str) -> list[str]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT file_type FROM dispatch_files WHERE dispatch_id=?",
+                (dispatch_id,)
+            )
+            return [row["file_type"] for row in cur.fetchall()]
+
+
+    def get_files_by_status_dispatch(self, status: str ) -> List[Dict]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT df.*
+            FROM dispatch_files df
+            JOIN dispatch d ON d.id = df.dispatch_id
+            WHERE d.status = ?
+            """, (status,))
+            return [dict(row) for row in cur.fetchall()]
+
 
     # ------------------------------
     # Business helpers

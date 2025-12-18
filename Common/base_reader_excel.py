@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 from Common.logger import get_logger
 
-logger = get_logger("ExcelReader")
+logger = get_logger(__name__)
 
 
 class BaseExcelReader:

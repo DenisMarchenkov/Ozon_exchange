@@ -4,7 +4,7 @@ from Common.logger import get_logger
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.utils.time import now_iso
 
-logger = get_logger("ConfirmationsRecorder")
+logger = get_logger(__name__)
 
 
 class ConfirmationsRecorder:

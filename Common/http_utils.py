@@ -7,7 +7,7 @@ from Common.logger import get_logger
 from Common.settings import DEV_MODE
 from Common.file_utils import get_fake_data
 
-logger = get_logger("Common")
+logger = get_logger(__name__)
 
 class FakeResponse:
     def __init__(self, status_code: int, json_data=None, text="", headers=None):
