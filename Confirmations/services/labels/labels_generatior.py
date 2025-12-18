@@ -3,7 +3,7 @@ from pathlib import Path
 from Common.logger import get_logger
 from Confirmations.api.ozon_labels_api import OzonLabelsAPI
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
-from Confirmations.files.labels_file_manager import LabelsFileManager
+from Confirmations.services.labels.labels_file_manager import LabelsFileManager
 
 logger = get_logger(__name__)
 
@@ -17,11 +17,7 @@ class LabelsGenerator:
         self.files = LabelsFileManager()
 
     def download(self, dispatch_id) -> Path | None:
-        #postings = self.repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "not_ready")
-        #postings += self.repo.get_postings_by_status_and_stickers_status("awaiting_delivery", "error")
-
         postings = self.repo.get_postings_by_dispatch(dispatch_id)
-
         postings = list(set(postings))
 
         if not postings:
