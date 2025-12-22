@@ -3,17 +3,19 @@ from Common.logger import get_logger
 from Common.settings import DB_PATH
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
+
 from Confirmations.services.confirmations.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations.confirmations_reader import ConfirmationsReader
 from Confirmations.services.archive_file_manager import ArchiveFileManager
 from Confirmations.services.mailers.mailer_dispatch import DispatchMailer
+
+from Confirmations.ozon_flow import run_ozon_flow
+
 from Confirmations.settings_app.settings_confirmations import (
     CONFIRMATIONS_DIR,
     SETTINGS_APP_DIR,
-    ARCHIVE_DIR_CONFIRMATIONS,
+    ARCHIVE_DIR_CONFIRMATIONS, OZON_DIVISION,
 )
-from Confirmations.ozon_flow import run_ozon_flow
-#from Confirmations.scenarios.other_flow import run_other_flow
 
 logger = get_logger(__name__)
 
@@ -51,17 +53,17 @@ def main():
     # ============================================================
     # 4. РАЗДЕЛЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
-    all_confirmations = confirmations_repo.get_all()
-    OZON_CODES = {16176, "16177", "OZON_FBS"}
+    #all_confirmations = confirmations_repo.get_all()
+    all_confirmations = confirmations_repo.get_by_status("confirmed")
 
-    ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_CODES]
-    other_confirmations = [c for c in all_confirmations if c["division_id"] not in OZON_CODES]
+    ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
+    other_confirmations = [c for c in all_confirmations if c["division_id"] not in OZON_DIVISION]
 
     dispatch_repo = DispatchRepository(DB_PATH)
 
 
     # ============================================================
-    # 5. Запуск сценариев
+    # 5. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
     if ozon_confirmations:
         logger.info(f"запуск сценария для {len(ozon_confirmations)} заказов ОЗОН")

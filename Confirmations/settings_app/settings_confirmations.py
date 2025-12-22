@@ -22,3 +22,6 @@ os.makedirs(ARCHIVE_DIR_LABELS, exist_ok=True)
 # папка для архивных файлов склада
 ARCHIVE_DIR_WAREHOUSE = os.path.join(ARCHIVE_DIR, "Warehouse_files")
 os.makedirs(ARCHIVE_DIR_WAREHOUSE, exist_ok=True)
+
+# коды подразделения
+OZON_DIVISION = {16176, "16177", "OZON_FBS"}

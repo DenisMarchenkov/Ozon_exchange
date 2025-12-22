@@ -6,6 +6,9 @@ from pathlib import Path
 from Common.logger import get_logger
 from Confirmations.settings_app.settings_confirmations import ARCHIVE_DIR_WAREHOUSE
 
+from openpyxl import load_workbook
+from Confirmations.services.warehouse_file_formater import WarehouseExcelFormatter
+
 logger = get_logger(__name__)
 
 
@@ -41,8 +44,14 @@ class WarehouseFileBuilder:
         ]
         self._check_required(required_cols, "Orders Summary")
 
+        df_summary = self.df.copy()
+
+        # ВАЖНО: приводим к дате без времени
+        df_summary["date_order"] = pd.to_datetime(df_summary["date_expiration"]).dt.date
+        df_summary["date_ship"] = pd.to_datetime(df_summary["date_ship"]).dt.date
+
         summary = (
-            self.df.groupby("posting_number")
+            df_summary.groupby("posting_number")
             .agg(
                 QNT=("quantity_confirm", "sum"),
                 PRICE_WITH_VAT=("price_with_vat", "sum"),
@@ -51,6 +60,17 @@ class WarehouseFileBuilder:
             )
             .reset_index()
         )
+
+        # summary = (
+        #     self.df.groupby("posting_number")
+        #     .agg(
+        #         QNT=("quantity_confirm", "sum"),
+        #         PRICE_WITH_VAT=("price_with_vat", "sum"),
+        #         DATE_ORDER=("date_order", "first"),
+        #         DATE_SHIP=("date_ship", "first"),
+        #     )
+        #     .reset_index()
+        # )
 
         summary.rename(
             columns={
@@ -78,10 +98,13 @@ class WarehouseFileBuilder:
         ]
         self._check_required(required_cols, "Items Summary")
 
+        df_items = self.df.copy()
+
+        # ВАЖНО: приводим к дате без времени
+        df_items["date_expiration"] = pd.to_datetime(df_items["date_expiration"]).dt.date
+
         items = (
-            self.df.groupby(
-                ["brand", "sku_art", "name", "date_expiration"]
-            )
+            df_items.groupby(["brand", "sku_art", "name", "date_expiration"])
             .agg(QNT=("quantity_confirm", "sum"))
             .reset_index()
         )
@@ -146,6 +169,21 @@ class WarehouseFileBuilder:
                 full.to_excel(writer, sheet_name="Full Data", index=False)
 
             logger.info(f"Файл для склада создан: {file_path}")
+
+            # запускаем форматирование файла
+            formatter = WarehouseExcelFormatter(str(file_path))
+            wb = load_workbook(file_path)
+
+            # TODO суффикс - название магазина, вынести в настройки
+            formatter.apply_common(wb["Orders Summary"], "ORDERS")
+            formatter.format_orders_summary(wb["Orders Summary"])
+
+            formatter.apply_common(wb["Items by Brand"], "ITEMS")
+            formatter.format_items_summary(wb["Items by Brand"])
+
+            formatter.apply_common(wb["Full Data"], "FULL")
+            formatter.format_full_data(wb["Full Data"])
+            wb.save(file_path)
 
             return file_path
 

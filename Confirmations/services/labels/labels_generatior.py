@@ -4,6 +4,7 @@ from Common.logger import get_logger
 from Confirmations.api.ozon_labels_api import OzonLabelsAPI
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.services.labels.labels_file_manager import LabelsFileManager
+from Confirmations.utils.time import now_iso
 
 logger = get_logger(__name__)
 
@@ -25,23 +26,24 @@ class LabelsGenerator:
             return None
 
         logger.info(f"Генерация наклеек для {len(postings)} заказов")
-        self.repo.update_stickers_status(postings, "creating")
+        self.repo.update_stickers_status(postings, "creating", now_iso())
 
         task_id = self.api.create_task(postings)
         if not task_id:
-            self.repo.update_stickers_status(postings, "error", "Не удалось создать задачу")
+            self.repo.update_stickers_status(postings, "error", now_iso())
             return None
 
-        self.repo.update_stickers_status(postings, "in_progress")
+        self.repo.update_stickers_status(postings, "in_progress", now_iso())
         result = self._wait_task(task_id)
 
         if result.get("status") == "completed" and result.get("file_url"):
             path = self.files.save(result["file_url"])
-            self.repo.update_stickers_status(postings, "ready")
+            self.repo.update_stickers_status(postings, "ready", now_iso())
             logger.info(f"Наклейки сохранены: {path}")
             return path
         else:
-            self.repo.update_stickers_status(postings, "error", result.get("error", "Ошибка генерации"))
+            self.repo.update_stickers_status(postings, "error", now_iso())
+            logger.error(f"При генерации наклеек озон вернул ошибку {result}")
             return None
 
     def _wait_task(self, task_id: str) -> dict:

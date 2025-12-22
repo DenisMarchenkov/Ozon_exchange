@@ -31,7 +31,7 @@ class ConfirmationsRecorder:
         "PODRCD",
     }
 
-    PROTECTED_STATUSES = {"confirmed", "awaiting_delivery"}
+    PROTECTED_STATUSES = {"confirmed", "awaiting_delivery", "IN_DISPATCH"}
 
     def __init__(self, repo: ConfirmationsRepository):
         self.repo = repo

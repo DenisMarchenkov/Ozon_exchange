@@ -666,15 +666,14 @@ class ConfirmationsRepository:
             """)
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
-    # TODO разобраться с error: str | None = None, параметр error ни куда не передается
-    def update_stickers_status(self, postings: List[str], status: str, error: str | None = None):
+    def update_stickers_status(self, postings: List[str], status: str, time):
         with self._get_conn() as conn:
             cur = conn.cursor()
             for posting_number in postings:
                 cur.execute("""
                     UPDATE confirmations
-                    SET stickers=?, updated_at=CURRENT_TIMESTAMP
+                    SET stickers=?, updated_at=?
                     WHERE posting_number=?
-                """, (status, posting_number))
+                """, (status, posting_number, time))
             conn.commit()
 #
