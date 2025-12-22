@@ -37,21 +37,25 @@ def save_to_files_server_response(resp):
             continue
 
         # ЕСЛИ ЗАКАЗА НЕТ В БАЗЕ — СОЗДАЁМ СО СТАТУСОМ 'new'
-        print(posting.get('requirements'))
-
+        # проверяем зависимости заказа
         non_empty_requirements = {
             key: value
             for key, value in posting.get('requirements').items()
             if isinstance(value, list) and value
         }
-        print(non_empty_requirements)
 
         if status is None:
             logger.info(f"Новый заказ {posting_number}, создаю в БД со статусом 'new'")
             if non_empty_requirements:
-                repo.create(posting_number, "new", True)
+                # если есть зависимости создаем заказ со статусом "new" и флагом true для has_requirements
+                repo.create_order(posting_number, "new", True)
 
-            repo.create(posting_number, "new", )
+                for req_type, values in non_empty_requirements.items():
+                    for value in values:
+                        repo.create_requirements(posting_number, req_type, value)
+
+            # если зависимостей нет, то false для has_requirements
+            repo.create_order(posting_number, "new", )
 
         filename = os.path.join(ORDERS_DIR, f"{posting_number}.dbf")
         order_date_iso = posting.get('in_process_at')

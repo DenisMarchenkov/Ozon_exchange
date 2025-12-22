@@ -1,3 +1,4 @@
+import time
 from abc import ABC, abstractmethod
 from email.utils import formataddr
 from pathlib import Path
@@ -69,5 +70,5 @@ class BaseMailer(ABC):
             smtp_user=self.smtp_user,
             smtp_password=self.smtp_password
         )
-
+        time.sleep(4)
         logger.info("Письмо отправлено.")

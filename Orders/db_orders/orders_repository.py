@@ -90,7 +90,7 @@ class OrdersRepository:
 
     # ---------- CREATE ----------
 
-    def create(
+    def create_order(
         self,
         posting_number: str,
         status: str,
@@ -114,6 +114,25 @@ class OrdersRepository:
                 status,
                 int(has_requirements),
             ))
+            conn.commit()
+
+    def create_requirements(self, order_id: int, requirement_type: str, requirement_value: str) -> None:
+        """
+        Создает запись в таблице зависимостей
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO order_requirements (
+                    order_id,
+                    requirement_type,
+                    requirement_value
+                )
+                VALUES (?, ?, ?)
+                """,
+                (order_id, requirement_type, requirement_value)
+            )
             conn.commit()
 
     # ---------- READ ----------

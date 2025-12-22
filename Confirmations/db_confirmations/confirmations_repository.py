@@ -382,6 +382,19 @@ class ConfirmationsRepository:
             row = cur.fetchone()
             return dict(row) if row else None
 
+    def get_by_status(self, status: str) -> List[Dict]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT * FROM confirmations
+                WHERE status = ?
+                """,
+                (status,)
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+
     def update_status(self, posting_number: str, status: str):
         with self._get_conn() as conn:
             cur = conn.cursor()
@@ -425,6 +438,25 @@ class ConfirmationsRepository:
             conn.commit()
 
         return [row["posting_number"] for row in rows]
+    #
+    # def lock_specific_postings(self, dispatch_id: str, postings: list[str]) -> list[str]:
+    #     if not postings:
+    #         return []
+    #
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         now = self._now()
+    #
+    #         cur.execute(
+    #             f"""
+    #             UPDATE confirmations
+    #             SET dispatch_id = ?, status = 'IN_DISPATCH', updated_at = ?
+    #             WHERE posting_number IN ({','.join(['?'] * len(postings))})
+    #             """,
+    #             [dispatch_id, now, *postings]
+    #         )
+    #         conn.commit()
+    #         return postings
 
     def get_postings_by_dispatch(self, dispatch_id: str) -> List[str]:
         with self._get_conn() as conn:
@@ -520,6 +552,17 @@ class ConfirmationsRepository:
                   AND c.stickers = ?
             """, (*posting_numbers, status, stickers_status))
 
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_items_for_posting(self, posting_number: str) -> list[dict]:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT ci.*
+            FROM confirmation_items ci
+            JOIN confirmations c ON c.id = ci.confirmation_id
+            WHERE c.posting_number = ?
+            """, (posting_number,))
             return [dict(row) for row in cur.fetchall()]
 
     def get_list_postings_numbers_by_status(self, status: str) -> list[str]:
