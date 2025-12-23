@@ -1,7 +1,6 @@
 from Common.logger import get_logger
 from Confirmations.api.ozon_confirmations_api import OzonConfirmationsAPI
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
-from Confirmations.utils.time import now_iso
 
 logger = get_logger(__name__)
 

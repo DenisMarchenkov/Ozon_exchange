@@ -3,12 +3,13 @@ from Common.logger import get_logger
 from Common.settings import DB_PATH
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
+from Confirmations.other_flow import run_other_flow
 
 from Confirmations.services.confirmations.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations.confirmations_reader import ConfirmationsReader
 from Confirmations.services.archive_file_manager import ArchiveFileManager
 from Confirmations.services.mailers.mailer_dispatch import DispatchMailer
-
+from Confirmations.services.mailers.mailer_shortage import ShortageMailer
 from Confirmations.ozon_flow import run_ozon_flow
 
 from Confirmations.settings_app.settings_confirmations import (
@@ -50,8 +51,22 @@ def main():
     )
     file_manager.archive_all()
 
+
     # ============================================================
-    # 4. РАЗДЕЛЕНИЕ ПОДТВЕРЖДЕНИЙ
+    # 4. ПИСЬМО О НЕХВАТКЕ
+    # ============================================================
+    refused_items = confirmations_repo.get_items_by_statuses_conf_and_item(
+        "awaiting_confirmation", "REFUSED")
+    if refused_items:
+        logger.warning("Есть отказанные позиции")
+        mailer = ShortageMailer(shortage_rows=refused_items)
+        mailer.send()
+    else:
+        logger.info("Нет данных для письма о нехватке товара")
+
+
+    # ============================================================
+    # 5. РАЗДЕЛЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
     #all_confirmations = confirmations_repo.get_all()
     all_confirmations = confirmations_repo.get_by_status("confirmed")
@@ -63,7 +78,7 @@ def main():
 
 
     # ============================================================
-    # 5. ЗАПУСК СЦЕНАРИЕВ
+    # 6. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
     if ozon_confirmations:
         logger.info(f"запуск сценария для {len(ozon_confirmations)} заказов ОЗОН")
@@ -71,11 +86,11 @@ def main():
 
     if other_confirmations:
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
-        #run_other_flow(other_confirmations, dispatch_repo)
+        run_other_flow(other_confirmations, confirmations_repo ,dispatch_repo)
 
 
     # ============================================================
-    # 6. ОТПРАВКА НА СКЛАД
+    # 7. ОТПРАВКА НА СКЛАД
     # ============================================================
     departures_for_send = dispatch_repo.get_dispatch_id_by_status("PREPARED")
 
@@ -84,10 +99,11 @@ def main():
 
         try:
             dispatch_files = dispatch_repo.get_files(d_id)
+            processing_orders = confirmations_repo.get_postings_by_dispatch(d_id)
             if not dispatch_files:
                 raise RuntimeError("Нет файлов для отправки")
 
-            mailer = DispatchMailer(dispatch_files)
+            mailer = DispatchMailer(dispatch_files, processing_orders)
             mailer.send()
 
             dispatch_repo.update_status(d_id, "SHIPPED_TO_STOCK")

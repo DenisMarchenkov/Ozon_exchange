@@ -438,25 +438,25 @@ class ConfirmationsRepository:
             conn.commit()
 
         return [row["posting_number"] for row in rows]
-    #
-    # def lock_specific_postings(self, dispatch_id: str, postings: list[str]) -> list[str]:
-    #     if not postings:
-    #         return []
-    #
-    #     with self._get_conn() as conn:
-    #         cur = conn.cursor()
-    #         now = self._now()
-    #
-    #         cur.execute(
-    #             f"""
-    #             UPDATE confirmations
-    #             SET dispatch_id = ?, status = 'IN_DISPATCH', updated_at = ?
-    #             WHERE posting_number IN ({','.join(['?'] * len(postings))})
-    #             """,
-    #             [dispatch_id, now, *postings]
-    #         )
-    #         conn.commit()
-    #         return postings
+
+    def lock_specific_postings(self, dispatch_id: str, postings: list[str]) -> list[str]:
+        if not postings:
+            return []
+
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            now = self._now()
+
+            cur.execute(
+                f"""
+                UPDATE confirmations
+                SET dispatch_id = ?, status = 'IN_DISPATCH', updated_at = ?
+                WHERE posting_number IN ({','.join(['?'] * len(postings))})
+                """,
+                [dispatch_id, now, *postings]
+            )
+            conn.commit()
+            return postings
 
     def get_postings_by_dispatch(self, dispatch_id: str) -> List[str]:
         with self._get_conn() as conn:
@@ -530,11 +530,34 @@ class ConfirmationsRepository:
             """, items)
             conn.commit()
 
+    # def get_items_for_postings(
+    #         self,
+    #         posting_numbers: list[str],
+    #         status: str,
+    #         stickers_status: str,
+    # ) -> list[dict]:
+    #     if not posting_numbers:
+    #         return []
+    #
+    #     placeholders = ",".join("?" for _ in posting_numbers)
+    #
+    #     with self._get_conn() as conn:
+    #         cur = conn.cursor()
+    #         cur.execute(f"""
+    #             SELECT ci.*
+    #             FROM confirmation_items ci
+    #             JOIN confirmations c ON c.id = ci.confirmation_id
+    #             WHERE c.posting_number IN ({placeholders})
+    #               AND c.status = ?
+    #               AND c.stickers = ?
+    #         """, (*posting_numbers, status, stickers_status))
+    #
+    #         return [dict(row) for row in cur.fetchall()]
+
     def get_items_for_postings(
             self,
             posting_numbers: list[str],
-            status: str,
-            stickers_status: str,
+
     ) -> list[dict]:
         if not posting_numbers:
             return []
@@ -543,14 +566,13 @@ class ConfirmationsRepository:
 
         with self._get_conn() as conn:
             cur = conn.cursor()
+            # TODO передаем не верные данные c.created_at AS date_order, c.updated_at AS date_ship - КОСТЫЛЬ
             cur.execute(f"""
-                SELECT ci.*
+                SELECT ci.*, c.posting_number, c.created_at AS date_order, c.updated_at AS date_ship
                 FROM confirmation_items ci
                 JOIN confirmations c ON c.id = ci.confirmation_id
                 WHERE c.posting_number IN ({placeholders})
-                  AND c.status = ?
-                  AND c.stickers = ?
-            """, (*posting_numbers, status, stickers_status))
+            """, (*posting_numbers,))
 
             return [dict(row) for row in cur.fetchall()]
 

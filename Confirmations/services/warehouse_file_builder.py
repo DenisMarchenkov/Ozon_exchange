@@ -20,8 +20,9 @@ class WarehouseFileBuilder:
         rows: list[dict] — данные (обычно из БД)
     """
 
-    def __init__(self, rows: Iterable[dict]):
+    def __init__(self, rows: Iterable[dict], suffix = None):
         self.rows = list(rows)
+        self.suffix = suffix or "default"
         #self.output_path = Path(output_path)
 
         if not self.rows:
@@ -47,8 +48,10 @@ class WarehouseFileBuilder:
         df_summary = self.df.copy()
 
         # ВАЖНО: приводим к дате без времени
-        df_summary["date_order"] = pd.to_datetime(df_summary["date_expiration"]).dt.date
-        df_summary["date_ship"] = pd.to_datetime(df_summary["date_ship"]).dt.date
+        df_summary["date_order"] = pd.to_datetime(df_summary["date_expiration"], errors="coerce"
+                                                  ).dt.date
+        df_summary["date_ship"] = pd.to_datetime(df_summary["date_ship"], errors="coerce"
+                                                 ).dt.date
 
         summary = (
             df_summary.groupby("posting_number")
@@ -60,17 +63,6 @@ class WarehouseFileBuilder:
             )
             .reset_index()
         )
-
-        # summary = (
-        #     self.df.groupby("posting_number")
-        #     .agg(
-        #         QNT=("quantity_confirm", "sum"),
-        #         PRICE_WITH_VAT=("price_with_vat", "sum"),
-        #         DATE_ORDER=("date_order", "first"),
-        #         DATE_SHIP=("date_ship", "first"),
-        #     )
-        #     .reset_index()
-        # )
 
         summary.rename(
             columns={
@@ -101,7 +93,8 @@ class WarehouseFileBuilder:
         df_items = self.df.copy()
 
         # ВАЖНО: приводим к дате без времени
-        df_items["date_expiration"] = pd.to_datetime(df_items["date_expiration"]).dt.date
+        df_items["date_expiration"] = (pd.to_datetime(df_items["date_expiration"], errors="coerce")
+                                       .dt.date)
 
         items = (
             df_items.groupby(["brand", "sku_art", "name", "date_expiration"])
@@ -131,14 +124,17 @@ class WarehouseFileBuilder:
             "brand": "Бренд",
             "sku_art": "Артикул",
             "name": "Наименование",
-            "quantity_confirm": "Количество",
-            "price_with_vat": "Цена с НДС",
+            "quantity_confirm": "Кол-во",
             "date_expiration": "Срок годности",
-            "date_order": "Дата заказа",
-            "date_ship": "Дата отгрузки",
         }
 
         df_full = self.df.rename(columns=rename_map)
+
+        # ВАЖНО: приводим к дате без времени
+        df_full["Срок годности"] = (
+            pd.to_datetime(df_full["Срок годности"], errors="coerce")
+            .dt.date
+        )
 
         keep_cols = list(rename_map.values())
 
@@ -202,8 +198,8 @@ class WarehouseFileBuilder:
                 f"Отсутствуют колонки: {missing}"
             )
 
-    @staticmethod
-    def _build_filename() -> Path:
+    #@staticmethod
+    def _build_filename(self) -> Path:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        name = f"warehouse_file__{timestamp}.xlsx"
+        name = f"warehouse_file__{timestamp}_{self.suffix}.xlsx"
         return Path(ARCHIVE_DIR_WAREHOUSE) / name

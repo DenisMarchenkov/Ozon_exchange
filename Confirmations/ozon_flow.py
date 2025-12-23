@@ -6,7 +6,7 @@ from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesSe
 from Confirmations.services.labels.labels_generatior import LabelsGenerator
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.mailers.mailer_error import ErrorMailer
-from Confirmations.services.mailers.mailer_shortage import ShortageMailer
+
 from Confirmations.utils.time import now_iso
 
 logger = get_logger(__name__)
@@ -50,28 +50,16 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
     else:
         logger.info("Нет данных для письма об ошибках")
 
-    # ============================================================
-    # 3. ПИСЬМО О НЕХВАТКЕ
-    # ============================================================
-    #refused_items = [c for c in ozon_confirmations if c["status"] == "REFUSED"]
-    refused_items = confirmations_repo.get_items_by_statuses_conf_and_item(
-        "awaiting_confirmation", "REFUSED")
-    if refused_items:
-        logger.warning("Есть отказанные позиции")
-        mailer = ShortageMailer(shortage_rows=refused_items)
-        mailer.send()
-    else:
-        logger.info("Нет данных для письма о нехватке товара")
 
     # ============================================================
-    # 4. DISPATCH: RETRY → PREPARE
+    # 3. DISPATCH: RETRY → PREPARE
     # ============================================================
     labels_generator = LabelsGenerator()
     files_service = DispatchFilesService(
         dispatch_repo=dispatch_repo,
         confirmations_repo=confirmations_repo,
         labels_generator=labels_generator,
-        warehouse_builder_cls=WarehouseFileBuilder,
+        warehouse_builder_cls=lambda rows: WarehouseFileBuilder(rows, suffix="OZON"),
     )
 
     # --- retry ERROR dispatch ---
@@ -82,7 +70,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
     retry_service.retry_failed()
 
     # --- prepare новый dispatch с блокировкой только OZON-подтверждений ---
-    dispatch_id = f"dispatch_{now_iso()}"
+    dispatch_id = f"dispatch_{now_iso()}_OZON"
     prepare_service = DispatchPrepareService(
         dispatch_repo=dispatch_repo,
         confirmations_repo=confirmations_repo,

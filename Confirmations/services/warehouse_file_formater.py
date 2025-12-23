@@ -98,20 +98,56 @@ class WarehouseExcelFormatter:
                         c.font = white_font
                         c.border = thin_white
 
+            # Форматирование ячейки 5, если значение больше 1
+            if sheet.cell(row, 5).value > 1:
+                sheet.cell(row, 5).fill = PatternFill(fill_type='solid', fgColor='FF000000')
+                sheet.cell(row, 5).font = Font(color='ffffff', name='Calibri', size=14)
+                sheet.cell(row, 5).border = Border(bottom=Side(border_style='thin', color='ffffff'))
+
     def format_full_data(self, sheet: Worksheet):
         sheet.page_setup.orientation = 'landscape'
         sheet.insert_rows(1)
         sheet["A1"].value = "ЛИСТ ПОДБОРА ЗАКАЗОВ"
         sheet["A1"].font = Font(name="Calibri", size=20, bold=True)
 
-        sheet.column_dimensions["A"].width = 24  # номер заказа
-        sheet.column_dimensions["B"].width = 15  # бренд
+        sheet.column_dimensions["A"].width = 27  # номер заказа
+        sheet.column_dimensions["B"].width = 18  # бренд
         sheet.column_dimensions["C"].width = 15  # артикул
-        sheet.column_dimensions["D"].width = 40  # наименование
+        sheet.column_dimensions["D"].width = 48  # наименование
         sheet.column_dimensions["E"].width = 6  # количество
-        sheet.column_dimensions["F"].width = 14 # цена с ндс
-        sheet.column_dimensions["G"].width = 15 # срок годности
-        sheet.column_dimensions["H"].width = 15 # дата заказа
-        sheet.column_dimensions["I"].width = 15 # дата отгрузки
+        sheet.column_dimensions["F"].width = 15 # срок годности
 
         sheet.print_title_rows = "2:2"
+
+        date_format = "DD.MM.YYYY"
+        grey = PatternFill("solid", fgColor="808080")
+        white_font = Font(color="FFFFFF", size=14)
+        thin_white = Border(
+            bottom=Side(style="thin", color="FFFFFF"),
+            right=Side(style="thin", color="FFFFFF"),
+        )
+
+        for row in range(3, sheet.max_row + 1):
+            sheet.cell(row, 6).number_format = date_format
+
+            # Форматирование ячейки 5, если значение больше 1
+            if sheet.cell(row, 5).value > 1:
+                sheet.cell(row, 5).fill = PatternFill(fill_type='solid', fgColor='FF000000')
+                sheet.cell(row, 5).font = Font(color='ffffff', name='Calibri', size=14)
+                sheet.cell(row, 5).border = Border(bottom=Side(border_style='thin', color='ffffff'))
+
+            # подсветка одинаковых артикулов
+            cur = sheet.cell(row, 1).value
+            next_val = (
+                sheet.cell(row + 1, 1).value
+                if row < sheet.max_row
+                else None
+            )
+
+            if cur == next_val:
+                for col in (2, 3, 4):
+                    for r in (row, row + 1):
+                        c = sheet.cell(r, col)
+                        c.fill = grey
+                        c.font = white_font
+                        c.border = thin_white

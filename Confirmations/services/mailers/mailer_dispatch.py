@@ -9,9 +9,10 @@ class DispatchMailer(BaseMailer):
     Письмо с наклейками и файлом для сборки заказов.
     """
 
-    def __init__(self, dispatch_files: Iterable[dict], *args, **kwargs):
+    def __init__(self, dispatch_files: Iterable[dict], processing_orders: list = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.dispatch_files = list(dispatch_files)
+        self.processing_orders = processing_orders or []
 
     # -----------------------------------------------
     #               Тема письма
@@ -52,10 +53,16 @@ class DispatchMailer(BaseMailer):
         lines.append("")
 
         if label_name:
-            lines.append(f"- Наклейки: {label_name}")
+            lines.append(f"Наклейки: {label_name}")
 
         if warehouse_name:
-            lines.append(f"- Файл для склада: {warehouse_name}")
+            lines.append(f"Файл для склада: {warehouse_name}")
+        lines.append("")
+
+        lines.append("Обработанные отправления:")
+        for order in self.processing_orders:
+            lines.append(f"----- {order}")
+
 
         lines.extend([
             "",
