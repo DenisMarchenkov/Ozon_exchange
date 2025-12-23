@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Iterable
 
 from Common.base_mailer import BaseMailer

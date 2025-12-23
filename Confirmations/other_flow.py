@@ -1,7 +1,6 @@
 from Common.logger import get_logger
 from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
 from Confirmations.services.dispatch.DispatchPrepareService import DispatchPrepareService
-from Confirmations.services.dispatch.DispatchRetryService import DispatchRetryService
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.utils.time import now_iso
 
@@ -21,13 +20,6 @@ def run_other_flow(other_confirmations, confirmations_repo, dispatch_repo):
         labels_generator=None,                      # без наклеек
         warehouse_builder_cls=lambda rows: WarehouseFileBuilder(rows, suffix="OTHERS"),
     )
-
-    # # --- retry ERROR dispatch ---
-    # retry_service = DispatchRetryService(
-    #     dispatch_repo=dispatch_repo,
-    #     files_service=files_service,
-    # )
-    # retry_service.retry_failed()
 
     # --- prepare новый dispatch с блокировкой только подтверждений ---
     dispatch_id = f"dispatch_{now_iso()}_OTHERS"

@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Optional
-from datetime import datetime
+from typing import List, Dict, Optional, Any
+from datetime import datetime, timezone
 
 from Common.settings import DB_PATH
 
@@ -53,7 +53,7 @@ class DispatchRepository:
                     dispatch_id TEXT NOT NULL,
                     file_type TEXT NOT NULL,
                     file_path TEXT NOT NULL,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    created_at TEXT,
                     FOREIGN KEY(dispatch_id) REFERENCES dispatch(id) ON DELETE CASCADE,
                     UNIQUE(dispatch_id, file_type)
                 )
@@ -66,7 +66,7 @@ class DispatchRepository:
     # ------------------------------
     @staticmethod
     def _now() -> str:
-        return datetime.utcnow().isoformat()
+        return datetime.now(timezone.utc).isoformat()
 
     # ------------------------------
     # Dispatch CRUD
@@ -122,7 +122,7 @@ class DispatchRepository:
             if not row:
                 return None
 
-            dispatch = dict(row)
+            dispatch: Dict[str, Any] = dict(row)
             dispatch["files"] = self.get_files(dispatch_id)
             return dispatch
 
@@ -160,9 +160,9 @@ class DispatchRepository:
             cur = conn.cursor()
             cur.execute("""
                 INSERT OR IGNORE INTO dispatch_files
-                (dispatch_id, file_type, file_path)
-                VALUES (?, ?, ?)
-            """, (dispatch_id, file_type, str(file_path)))
+                (dispatch_id, file_type, file_path, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (dispatch_id, file_type, str(file_path), self._now()))
             conn.commit()
 
     def get_files(self, dispatch_id: str) -> List[Dict]:
