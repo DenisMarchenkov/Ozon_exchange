@@ -1,3 +1,5 @@
+from datetime import timezone
+
 import pandas as pd
 
 from Common.logger import get_logger
@@ -29,12 +31,36 @@ class ConfirmationsRecorder:
         "QNT",
         "REFUSED",
         "PODRCD",
+        "DATE_ORDER",
+        "DATE_SHIP",
     }
 
     PROTECTED_STATUSES = {"confirmed", "awaiting_delivery", "IN_DISPATCH"}
 
     def __init__(self, repo: ConfirmationsRepository):
         self.repo = repo
+
+    def _normalize_date(self, value, *, dayfirst=False):
+        if value is None or pd.isna(value):
+            return None
+
+        if isinstance(value, pd.Timestamp):
+            dt = value.to_pydatetime()
+        elif isinstance(value, str):
+            dt = pd.to_datetime(
+                value,
+                errors="coerce",
+                dayfirst=dayfirst
+            )
+            if pd.isna(dt):
+                return None
+            dt = dt.to_pydatetime()
+        else:
+            return None
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
 
     def record_from_dataframe(self, df: pd.DataFrame) -> list[str]:
         if df is None or df.empty:
@@ -50,6 +76,17 @@ class ConfirmationsRecorder:
         for posting_number_raw, group in df.groupby("ORDER_ID"):
             posting_number: str = str(posting_number_raw)
             processed_postings.append(str(posting_number))
+
+            shipped_at = self._normalize_date(
+                group["DATE_SHIP"].iloc[0],
+                dayfirst=True
+            )
+
+            ordered_at = self._normalize_date(
+                group["DATE_ORDER"].iloc[0],
+                dayfirst=True
+            )
+
             division_id = int(group["PODRCD"].iloc[0])
             source_file = (
                 group["__source_file__"].iloc[0]
@@ -88,6 +125,8 @@ class ConfirmationsRecorder:
                     division_id=division_id,
                     status="NEW",
                     source_file=source_file,
+                    ordered_at=ordered_at,
+                    shipped_at=shipped_at,
                     created_at=now_iso(),
                     updated_at=now_iso()
                 )

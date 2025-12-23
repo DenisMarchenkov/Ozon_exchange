@@ -40,26 +40,24 @@ class WarehouseFileBuilder:
             "posting_number",
             "quantity_confirm",
             "price_with_vat",
-            "date_order",
-            "date_ship",
+            "ordered_at",
+            "shipped_at",
         ]
         self._check_required(required_cols, "Orders Summary")
 
         df_summary = self.df.copy()
 
         # ВАЖНО: приводим к дате без времени
-        df_summary["date_order"] = pd.to_datetime(df_summary["date_expiration"], errors="coerce"
-                                                  ).dt.date
-        df_summary["date_ship"] = pd.to_datetime(df_summary["date_ship"], errors="coerce"
-                                                 ).dt.date
+        df_summary["ordered_at"] = pd.to_datetime(df_summary["ordered_at"], errors="coerce").dt.date
+        df_summary["shipped_at"] = pd.to_datetime(df_summary["shipped_at"], errors="coerce").dt.date
 
         summary = (
             df_summary.groupby("posting_number")
             .agg(
                 QNT=("quantity_confirm", "sum"),
                 PRICE_WITH_VAT=("price_with_vat", "sum"),
-                DATE_ORDER=("date_order", "first"),
-                DATE_SHIP=("date_ship", "first"),
+                DATE_ORDER=("ordered_at", "first"),
+                DATE_SHIP=("shipped_at", "first"),
             )
             .reset_index()
         )
@@ -108,7 +106,7 @@ class WarehouseFileBuilder:
                 "sku_art": "Артикул",
                 "name": "Наименование",
                 "date_expiration": "Срок годности",
-                "QNT": "Колл-во",
+                "QNT": "Кол-во",
             },
             inplace=True,
         )

@@ -52,8 +52,10 @@ class WarehouseExcelFormatter:
         sheet.print_title_rows = "2:2"
 
         date_format = "DD.MM.YYYY"
+        money_format = '#,##0.00" ₽"'
 
         for row in range(3, sheet.max_row + 1):
+            sheet.cell(row, 3).number_format = money_format
             sheet.cell(row, 4).number_format = date_format
             sheet.cell(row, 5).number_format = date_format
 
