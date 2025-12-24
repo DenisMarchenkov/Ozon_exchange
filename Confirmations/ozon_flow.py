@@ -39,6 +39,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
         logger.info(f"Повторная попытка перевода {len(error_orders)} заказов со статусом error")
         updater.process_deliveries(error_orders)
 
+
     # ============================================================
     # 2. ПИСЬМО ОБ ОШИБКАХ
     # ============================================================

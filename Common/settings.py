@@ -45,7 +45,7 @@ if not all([API_TOKEN, CLIENT_ID, WAREHOUSE_ID]):
 # 🔹 ФАЙЛЫ И ПАПКИ ПРОЕКТА
 # ============================================================
 # Папка внутри проекта, куда МЫ копируем прайсы поставщика
-SUPPLIER_PRICE_FOLDER = os.path.join(BASE_DIR, "Supplier_prices")
+SUPPLIER_PRICE_FOLDER = os.path.join(ARCHIVE_DIR, "Supplier_prices")
 os.makedirs(SUPPLIER_PRICE_FOLDER, exist_ok=True)
 
 
@@ -57,7 +57,7 @@ if DEV_MODE:
     SUPPLIER_SOURCE = r"C:\Users\dmarc\PycharmProjects"
 else:
     # 🚀 БОЕВОЙ FTP НА VDS
-    SUPPLIER_SOURCE = r"/home/ftp/supplier"
+    SUPPLIER_SOURCE = r"/srv/ftpdata/Prices/Farmaderm/"
 
 
 SUPPLIER_PRICE_FILENAME = "stock-update-template_with_price_FD.xls"

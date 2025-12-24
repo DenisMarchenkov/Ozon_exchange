@@ -9,13 +9,26 @@ def update_prices(api_token: str, prices: list, client_id: str) -> list:
     headers = {
         'Api-Key': api_token,
         'Accept': 'application/json',
-        'Client-Id': client_id
+        'Client-Id': client_id,
+        'Content-Type': 'application/json',
     }
 
     responses = []
     batches = prepare_batches(prices)
+
     for batch in batches:
-        response = send_request_with_retries(url, "POST", headers, body=batch)
+        payload = {
+            "prices": batch
+        }
+
+        response = send_request_with_retries(
+            url,
+            "POST",
+            headers,
+            body=payload
+        )
+
         responses.append(response)
         time.sleep(1)
+
     return responses
