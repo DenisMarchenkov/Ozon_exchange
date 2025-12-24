@@ -4,7 +4,7 @@ from Common.logger import get_logger
 from Confirmations.api.ozon_labels_api import OzonLabelsAPI
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.services.labels.labels_file_manager import LabelsFileManager
-from Confirmations.utils.time import now_iso
+from Common.time import now_iso
 
 logger = get_logger(__name__)
 

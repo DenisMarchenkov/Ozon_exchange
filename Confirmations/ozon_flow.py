@@ -7,7 +7,7 @@ from Confirmations.services.labels.labels_generatior import LabelsGenerator
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.mailers.mailer_error import ErrorMailer
 
-from Confirmations.utils.time import now_iso
+from Common.time import now_iso
 
 logger = get_logger(__name__)
 

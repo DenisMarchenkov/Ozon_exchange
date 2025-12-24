@@ -1,5 +1,5 @@
 from Common.logger import get_logger
-from Confirmations.utils.time import now_iso
+from Common.time import now_iso
 
 logger = get_logger(__name__)
 

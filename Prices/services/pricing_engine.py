@@ -253,7 +253,7 @@ class PricingEngine:
         # === 2. Нет ручной — используем наценку бренда
         # ======================================================
         if brand_markup:
-            logger.debug(f"Используется глобальная наценка бренда '{brand}' для SKU={sku}")
+            logger.info(f"Используется глобальная наценка бренда '{brand}' для SKU={sku}")
 
             # ---- price ----
             if brand_price is not None:
