@@ -60,7 +60,7 @@ def main():
     if refused_items:
         logger.warning("Есть отказанные позиции")
         mailer = ShortageMailer(shortage_rows=refused_items)
-        mailer.send()
+        #mailer.send()
     else:
         logger.info("Нет данных для письма о нехватке товара")
 
@@ -68,18 +68,21 @@ def main():
     # ============================================================
     # 5. РАЗДЕЛЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
-    #all_confirmations = confirmations_repo.get_all()
-    all_confirmations = confirmations_repo.get_by_status("confirmed")
+    confirmed = confirmations_repo.get_by_status("confirmed")
+    error = confirmations_repo.get_by_status("error") # подхватываем те которые раньше при обновлении завершились ошибкой
+
+    #all_confirmations = confirmations_repo.get_by_status("confirmed")
+    all_confirmations = confirmed + error
 
     ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
     other_confirmations = [c for c in all_confirmations if c["division_id"] not in OZON_DIVISION]
-
-    dispatch_repo = DispatchRepository(DB_PATH)
 
 
     # ============================================================
     # 6. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
+    dispatch_repo = DispatchRepository(DB_PATH)
+
     if ozon_confirmations:
         logger.info(f"запуск сценария для {len(ozon_confirmations)} заказов ОЗОН")
         run_ozon_flow(ozon_confirmations, confirmations_repo ,dispatch_repo)
@@ -90,7 +93,7 @@ def main():
 
 
     # ============================================================
-    # 7. ОТПРАВКА НА СКЛАД
+    # 7. ОТПРАВКА НА СКЛАД ОБРАБОТАННЫХ ДАННЫХ
     # ============================================================
     departures_for_send = dispatch_repo.get_dispatch_id_by_status("PREPARED")
 
@@ -104,7 +107,7 @@ def main():
                 raise RuntimeError("Нет файлов для отправки")
 
             mailer = DispatchMailer(dispatch_files, processing_orders)
-            mailer.send()
+            # mailer.send()
 
             dispatch_repo.update_status(d_id, "SHIPPED_TO_STOCK")
 
@@ -112,7 +115,21 @@ def main():
             logger.exception(f"Ошибка отправки dispatch {d_id}")
             dispatch_repo.update_status(d_id, "ERROR")
 
-    logger.info("=== Проверка подтверждений завершена ===")
+
+    # ============================================================
+    # 8. ПИСЬМО ОБ ОШИБКАХ
+    # ============================================================
+    # remaining_errors = [c for c in ozon_confirmations if c["status"] == "error"]
+    # #remaining_errors = confirmations_repo.get_by_status("error")
+    #
+    # if remaining_errors:
+    #     logger.warning("Остались неподтверждённые заказы после повторной попытки")
+    #     mailer = ErrorMailer(error_rows=remaining_errors)
+    #     mailer.send()
+    # else:
+    #     logger.info("Нет данных для письма об ошибках")
+    #
+    # logger.info("=== Проверка подтверждений завершена ===")
 
 
 if __name__ == "__main__":

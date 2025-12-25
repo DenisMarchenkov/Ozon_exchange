@@ -1,5 +1,6 @@
 from Common.logger import get_logger
 from Confirmations.services.confirmations.confirmations_status_updater import ConfirmationsStatusUpdater
+from Confirmations.services.confirmations.exemplar_ship_availability import ExemplarShipAvailabilityService
 from Confirmations.services.dispatch.DispatchRetryService import DispatchRetryService
 from Confirmations.services.dispatch.DispatchPrepareService import DispatchPrepareService
 from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
@@ -24,32 +25,34 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
         logger.info("Нет подтверждений для OZON")
         return
 
-    # ============================================================
-    # 1. ОБНОВЛЕНИЕ СТАТУСОВ OZON (ship)
-    # ============================================================
-    updater = ConfirmationsStatusUpdater()
 
-    confirmed_orders = [c["posting_number"] for c in ozon_confirmations if c["status"] == "confirmed"]
-    if confirmed_orders:
-        logger.info(f"Переводим {len(confirmed_orders)} заказов со статусом confirmed")
-        updater.process_deliveries(confirmed_orders)
-
-    error_orders = [c["posting_number"] for c in ozon_confirmations if c["status"] == "error"]
-    if error_orders:
-        logger.info(f"Повторная попытка перевода {len(error_orders)} заказов со статусом error")
-        updater.process_deliveries(error_orders)
+    # ============================================================
+    # 1. ПРОВЕРКА ЗАКАЗОВ НА ДОСТУПНОСТЬ К СБОРКЕ
+    # ============================================================
+    service = ExemplarShipAvailabilityService()
+    postings = service.divide_postings(ozon_confirmations)
+    ship_available = postings["ship_available"]
+    ship_not_available = postings["ship_not_available"]
 
 
     # ============================================================
-    # 2. ПИСЬМО ОБ ОШИБКАХ
+    # 2. ОБНОВЛЕНИЕ СТАТУСОВ OZON
     # ============================================================
-    remaining_errors = [c for c in ozon_confirmations if c["status"] == "error"]
-    if remaining_errors:
-        logger.warning("Остались неподтверждённые заказы после повторной попытки")
-        mailer = ErrorMailer(error_rows=remaining_errors)
-        mailer.send()
+    # для разрешенных отправлений
+    if ship_available:
+        logger.info(f"Одобренные для ship: {len(ship_available)}")
+        updater = ConfirmationsStatusUpdater()
+        updater.process_deliveries(ship_available)
     else:
-        logger.info("Нет данных для письма об ошибках")
+        logger.info("Нет данных для обновления статусов заказов в OZON")
+
+    # для не разрешенных отправлений
+    if ship_not_available:
+        logger.info(f"НЕ одобренные для ship: {len(ship_not_available)}")
+        for ship in ship_not_available:
+            confirmations_repo.update_status(ship, "ship_not_available")
+
+        # TODO отправить письмо, нужна таблица в бд для хранения ответа с озона
 
 
     # ============================================================

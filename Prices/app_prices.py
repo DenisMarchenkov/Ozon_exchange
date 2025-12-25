@@ -1,4 +1,3 @@
-
 from Prices.db_prices.prices_repository import SupplierPriceHashRepository
 from Prices.services.pricing_engine import MarkupReader, ProductReader, PricingEngine
 from Prices.api.ozon_api import update_prices

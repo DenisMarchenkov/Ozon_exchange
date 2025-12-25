@@ -106,20 +106,6 @@ class OzonConfirmationsAPI:
             "packages": [{"products": products}],
         }
 
-    @staticmethod
-    def get_requirements_order(order_raw):
-        non_empty_requirements = {
-            key: value
-            for key, value in order_raw.get('requirements').items()
-            if isinstance(value, list) and value
-        }
-
-        # for req_type, values in non_empty_requirements.items():
-        #     for value in values:
-        #         print(req_type, '---', value)
-
-        return non_empty_requirements
-
 
     # ----------------------------------------------------------------------
     # SHIP — перевод заказа в awaiting_delivery
@@ -133,10 +119,6 @@ class OzonConfirmationsAPI:
         except Exception as e:
             logger.error(f"Ошибка получения данных заказа {posting_number}: {e}")
             return False, str(e)
-
-        # TODO 1.1 Добавляем GTD
-        requirements = self.get_requirements_order(order_raw)
-        logger.info(f"Данные о зависимостях из озона через запрос - {requirements}")
 
         # 2. Формируем payload
         try:

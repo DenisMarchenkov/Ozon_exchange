@@ -76,6 +76,11 @@ def send_request_with_retries(
                         get_fake_data("fake_response_get_file_package_label.json")
                     )
 
+                elif "posting/product/exemplar/status" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        get_fake_data("fake_response_get_exemplar_status.json")
+                    )
+
                 else:
                     response = FakeResponse.ok({"result": "test_ok"})
 

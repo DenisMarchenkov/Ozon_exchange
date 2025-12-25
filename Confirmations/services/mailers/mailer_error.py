@@ -38,6 +38,7 @@ class ErrorMailer(BaseMailer):
         for posting_number, items in confirmations.items():
             body_lines.append(f"Подтверждение: {posting_number}")
             for item in items:
+                print(item)
                 line = (
                     f"----- SKU: {item['sku_code']} / {item['sku_art']}\n"
                     f"----- Наименование: {item['name']}\n"
