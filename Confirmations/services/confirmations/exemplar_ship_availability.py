@@ -1,5 +1,4 @@
-from typing import Dict, List
-
+from typing import Dict, List, Any
 from Common.logger import get_logger
 from Confirmations.api.ozon_exemplar_status_api import OzonExemplarStatusAPI
 
@@ -43,17 +42,33 @@ class ExemplarShipAvailabilityService:
         """
         return self.api.get_status(posting_number)
 
-    def divide_postings(self, ozon_confirmations: list[dict]) -> Dict[str, List[str]]:
+    def divide_postings(self, ozon_confirmations: list[dict]) -> dict[str, dict[str, dict]]:
         """
         Делит список заказов на группы по статусу.
+        Возвращает словарь вида:
+        {
+            "ship_available": {posting_number: resp},
+            "ship_not_available": {posting_number: resp},
+            ...
+        }
         """
+        # словарь для группировки
         result = {
-            "ship_available": [],
-            "ship_not_available": [],
-            "validation_in_process": [],
-            "update_available": [],
-            "update_not_available": [],
-            "unknown": [],
+            "ship_available": {},
+            "ship_not_available": {},
+            "validation_in_process": {},
+            "update_available": {},
+            "update_not_available": {},
+            "unknown": {},
+        }
+
+        # соответствие статусов Ozon → ключи result
+        status_map = {
+            self.STATUS_SHIP_AVAILABLE: "ship_available",
+            self.STATUS_SHIP_NOT_AVAILABLE: "ship_not_available",
+            self.STATUS_VALIDATION: "validation_in_process",
+            self.STATUS_UPDATE_AVAILABLE: "update_available",
+            self.STATUS_UPDATE_NOT_AVAILABLE: "update_not_available",
         }
 
         for c in ozon_confirmations:
@@ -65,18 +80,10 @@ class ExemplarShipAvailabilityService:
             except Exception as e:
                 logger.error(f"[EX_STATUS] {posting_number}: ошибка получения статуса: {e}")
                 status = "unknown"
+                resp = {}  # если ошибка, значение тоже словарь
 
-            if status == self.STATUS_SHIP_AVAILABLE:
-                result["ship_available"].append(posting_number)
-            elif status == self.STATUS_SHIP_NOT_AVAILABLE:
-                result["ship_not_available"].append(posting_number)
-            elif status == self.STATUS_VALIDATION:
-                result["validation_in_process"].append(posting_number)
-            elif status == self.STATUS_UPDATE_AVAILABLE:
-                result["update_available"].append(posting_number)
-            elif status == self.STATUS_UPDATE_NOT_AVAILABLE:
-                result["update_not_available"].append(posting_number)
-            else:
-                result["unknown"].append(posting_number)
+            key = status_map.get(status, "unknown")
+            result[key][posting_number] = resp
 
         return result
+

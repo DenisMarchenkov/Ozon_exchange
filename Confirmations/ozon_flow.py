@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from Common.logger import get_logger
 from Confirmations.services.confirmations.confirmations_status_updater import ConfirmationsStatusUpdater
 from Confirmations.services.confirmations.exemplar_ship_availability import ExemplarShipAvailabilityService
@@ -6,7 +8,6 @@ from Confirmations.services.dispatch.DispatchPrepareService import DispatchPrepa
 from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
 from Confirmations.services.labels.labels_generatior import LabelsGenerator
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
-from Confirmations.services.mailers.mailer_error import ErrorMailer
 
 from Common.time import now_iso
 
@@ -42,17 +43,36 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
     if ship_available:
         logger.info(f"Одобренные для ship: {len(ship_available)}")
         updater = ConfirmationsStatusUpdater()
-        updater.process_deliveries(ship_available)
+        updater.process_deliveries(list(ship_available.keys()))
     else:
         logger.info("Нет данных для обновления статусов заказов в OZON")
 
     # для не разрешенных отправлений
     if ship_not_available:
         logger.info(f"НЕ одобренные для ship: {len(ship_not_available)}")
-        for ship in ship_not_available:
+        for ship in list(ship_not_available.keys()):
             confirmations_repo.update_status(ship, "ship_not_available")
+        pprint(ship_not_available)
+        # TODO обновить необходимые данные в озон
+        # это структура для обновления гтд в запросе https://api-seller.ozon.ru/v6/fbs/posting/product/exemplar/set
+        # {
+        #     "posting_number": "30229416-0491-3",
+        #     "products": [
+        #         {
+        #             "exemplars": [
+        #                 {
+        #                     "exemplar_id": 27100664968,
+        #                     "gtd": "10132160/191125/5229689/22"
+        #                 }
+        #             ],
+        #             "product_id": 2042205041
+        #         }
+        #     ]
+        # }
 
-        # TODO отправить письмо, нужна таблица в бд для хранения ответа с озона
+        # TODO отправить письмо что с заказами косяк
+
+
 
 
     # ============================================================
