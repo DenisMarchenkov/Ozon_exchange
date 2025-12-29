@@ -46,6 +46,28 @@ class OrdersRepository:
             """)
 
             # ------------------------------
+            # Таблица позиций в заказе
+            # ------------------------------
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    order_id INTEGER NOT NULL,
+                    product_id INTEGER NOT NULL,
+                    offer_id TEXT NOT NULL,
+                    quantity INTEGER NOT NULL CHECK(quantity > 0),
+
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                    FOREIGN KEY (order_id)
+                        REFERENCES orders(id)
+                        ON DELETE CASCADE
+                )
+            """)
+
+
+            # ------------------------------
             # Таблица зависимостей заказов
             # ------------------------------
             cur.execute("""
@@ -85,6 +107,11 @@ class OrdersRepository:
                 ON order_requirements(requirement_type, requirement_value)
             """)
 
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_order_items_order_id
+                ON order_items(order_id)
+            """)
+
             conn.commit()
 
 
@@ -115,6 +142,45 @@ class OrdersRepository:
                 int(has_requirements),
             ))
             conn.commit()
+
+    def create_order_with_items(
+            self,
+            posting_number: str,
+            status: str,
+            has_requirements: bool,
+            items: list[dict]
+    ) -> int:
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("PRAGMA foreign_keys = ON;")
+
+            # 1. создаём заказ
+            cur.execute("""
+                INSERT INTO orders (posting_number, status, has_requirements)
+                VALUES (?, ?, ?)
+            """, (posting_number, status, int(has_requirements)))
+
+            order_id = cur.lastrowid
+
+            # 2. создаём позиции
+            order_items = [
+                (
+                    order_id,
+                    item["product_id"],
+                    item["offer_id"],
+                    item["quantity"]
+                )
+                for item in items
+            ]
+
+            cur.executemany("""
+                INSERT INTO order_items
+                (order_id, product_id, offer_id, quantity)
+                VALUES (?, ?, ?, ?)
+            """, order_items)
+
+            conn.commit()
+            return order_id
 
     def create_requirements(self, order_id: int, requirement_type: str, requirement_value: str) -> None:
         """
@@ -194,6 +260,15 @@ class OrdersRepository:
             cursor.execute("""
                 SELECT *
                 FROM order_requirements
+            """,)
+            return [self._row_to_dict(r) for r in cursor.fetchall()]
+
+    def get_all_items(self):
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT *
+                FROM order_items
             """,)
             return [self._row_to_dict(r) for r in cursor.fetchall()]
 

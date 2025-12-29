@@ -1,4 +1,5 @@
 import os
+from pprint import pprint
 
 from Orders.dbf_tools.dbf_writer import save_to_dbf
 from Orders.settings_app.settings_orders import ORDERS_DIR, CUSTOMER_ID_IN_SUPPLIER_CRM, DIVISION_ID_IN_SUPPLIER_CRM, SHOP_NAME
@@ -26,41 +27,62 @@ def save_to_files_server_response(resp):
 
         status = repo.get_status(posting_number)
 
-        # Если уже создан DBF — пропускаем
         if status == "dbf_created":
             logger.info(f"{posting_number} уже обработан ранее")
             continue
 
-        # Если отменён — пропускаем
         if status == "cancelled":
             logger.info(f"{posting_number} отменён — пропуск")
             continue
 
-        # ЕСЛИ ЗАКАЗА НЕТ В БАЗЕ — СОЗДАЁМ СО СТАТУСОМ 'new'
-        # проверяем зависимости заказа
+        products = posting.get('products') or []
+        pprint(products)
+        requirements = posting.get('requirements') or {}
         non_empty_requirements = {
             key: value
-            for key, value in posting.get('requirements').items()
+            for key, value in requirements.items()
             if isinstance(value, list) and value
         }
 
         if status is None:
             logger.info(f"Новый заказ {posting_number}, создаю в БД со статусом 'new'")
-            if non_empty_requirements:
-                # если есть зависимости создаем заказ со статусом "new" и флагом true для has_requirements
-                repo.create_order(posting_number, "new", True)
 
-                for req_type, values in non_empty_requirements.items():
-                    for value in values:
-                        repo.create_requirements(posting_number, req_type, value)
+            if not products:
+                logger.warning(f"{posting_number}: нет products — заказ не сохранён в БД")
+                continue
 
-            # если зависимостей нет, то false для has_requirements
-            repo.create_order(posting_number, "new", )
+            items = [
+                {
+                    "product_id": p.get("sku"),
+                    "offer_id": p.get("offer_id"),
+                    "quantity": p.get("quantity"),
+                }
+                for p in products
+            ]
+
+            pprint(items)
+
+            items = [i for i in items if i["quantity"] > 0 and i["offer_id"]]
+            if not items:
+                logger.warning(f"{posting_number}: все позиции пустые")
+                continue
+
+            has_requirements = bool(non_empty_requirements)
+
+            repo.create_order_with_items(
+                posting_number=posting_number,
+                status="new",
+                has_requirements=has_requirements,
+                items=items
+            )
+
+            for req_type, values in non_empty_requirements.items():
+                for value in values:
+                    repo.create_requirements(posting_number, req_type, value)
 
         filename = os.path.join(ORDERS_DIR, f"{posting_number}.dbf")
         order_date_iso = posting.get('in_process_at')
         shipment_date_iso = posting.get('shipment_date')
-        products = posting.get('products') or []
         comment_for_supplier = f'{posting_number} Заказ OZON {SHOP_NAME}'
 
         if not products:
@@ -79,7 +101,6 @@ def save_to_files_server_response(resp):
                 division_id=str(DIVISION_ID_IN_SUPPLIER_CRM),
             )
 
-            # ПОСЛЕ УСПЕШНОГО СОЗДАНИЯ DBF — ОБНОВЛЯЕМ СТАТУС
             repo.update_status(posting_number, "dbf_created")
             logger.info(f"Статус заказа {posting_number} обновлён на dbf_created")
 

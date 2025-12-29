@@ -28,3 +28,7 @@ if __name__ == "__main__":
     print("--------------------------------------")
     row = repo.get_all_requirements()
     print(row)
+
+    print("--------------------------------------")
+    row = repo.get_all_items()
+    print(row)
