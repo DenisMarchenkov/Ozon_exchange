@@ -15,7 +15,7 @@ class ShortageMailer(BaseMailer):
         super().__init__(*args, **kwargs)
         self.shortage_rows = list(shortage_rows)
 
-    def build_subject(self) -> str:
+    def build_subject_core(self) -> str:
         return "Обнаружена дефектура в подтверждениях"
 
     def build_body(self) -> str:

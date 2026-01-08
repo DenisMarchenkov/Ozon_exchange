@@ -1,7 +1,7 @@
 {
   "additional_data": [
     {
-      "posting_number": "89491381-0072-1",
+      "posting_number": "23713478-0018-3",
       "products": [
         {
           "currency_code": "RUB",
@@ -12,12 +12,12 @@
           "offer_id": "17125",
           "price": "2000",
           "quantity": 1,
-          "sku": 149618972
+          "sku": 140048123
         }
       ]
     }
   ],
   "result": [
-    "89491381-0072-1"
+    "23713478-0018-3"
   ]
 }

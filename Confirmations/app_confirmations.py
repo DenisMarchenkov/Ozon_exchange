@@ -107,7 +107,7 @@ def main():
                 raise RuntimeError("Нет файлов для отправки")
 
             mailer = DispatchMailer(dispatch_files, processing_orders)
-            # mailer.send()
+            #mailer.send()
 
             dispatch_repo.update_status(d_id, "SHIPPED_TO_STOCK")
 
@@ -117,7 +117,7 @@ def main():
 
 
     # ============================================================
-    # 8. ПИСЬМО ОБ ОШИБКАХ
+    # 8. TODO ПИСЬМО ОБ ОШИБКАХ??? не помню, нужно разобраться
     # ============================================================
     # remaining_errors = [c for c in ozon_confirmations if c["status"] == "error"]
     # #remaining_errors = confirmations_repo.get_by_status("error")

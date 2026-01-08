@@ -16,7 +16,7 @@ class ErrorMailer(BaseMailer):
         super().__init__(*args, **kwargs)
         self.error_rows = list(error_rows)
 
-    def build_subject(self) -> str:
+    def build_subject_core(self) -> str:
         return "Ошибка при переводе подтверждений в статус 'ожидает отгрузки' в OZON"
 
     def build_body(self) -> str:

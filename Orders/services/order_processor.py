@@ -53,12 +53,13 @@ def save_to_files_server_response(resp):
 
             items = [
                 {
-                    "product_id": p.get("sku"),
-                    "offer_id": p.get("offer_id"),
-                    "quantity": p.get("quantity"),
+                    "product_id": p.get("sku", 'Unknow product'),
+                    "offer_id": p.get("offer_id", 'Unknow product'),
+                    "quantity": p.get("quantity", 'Unknow product'),
                 }
                 for p in products
             ]
+
 
             pprint(items)
 

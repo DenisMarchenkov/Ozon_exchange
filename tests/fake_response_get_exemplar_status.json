@@ -1,10 +1,10 @@
 {
-  "posting_number": "string",
+  "posting_number": "23713478-0018-3",
   "products": [
     {
       "exemplars": [
         {
-          "exemplar_id": 0,
+          "exemplar_id": 1221212,
           "gtd": "string",
           "gtd_check_status": "string",
           "gtd_error_codes": [
@@ -34,8 +34,8 @@
           ]
         }
       ],
-      "product_id": 0
+      "product_id": 140048123
     }
   ],
-  "status": "ship_not_available"
+  "status": "ship_available"
 }

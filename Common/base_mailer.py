@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List
 from Common.logger import get_logger
 from Common.email_utils import send_email
-from Common.settings import MAILER_LOGIN, MAILER_PASSWORD, RECIPIENT_ADMIN
+from Common.settings import MAILER_LOGIN, MAILER_PASSWORD, RECIPIENT_ADMIN, NAME_SHOP
 
 logger = get_logger(__name__)
 
@@ -13,7 +13,10 @@ logger = get_logger(__name__)
 class BaseMailer(ABC):
     """
     Базовый класс для всех писем.
+    Добавляет shop_name в тему письма по умолчанию.
     """
+
+    #DEFAULT_SHOP_NAME = "OZON"  # <-- здесь можно указать магазин по умолчанию
 
     def __init__(
         self,
@@ -26,21 +29,39 @@ class BaseMailer(ABC):
         self.smtp_user = smtp_user
         self.smtp_password = smtp_password
         self.sender = formataddr((sender, smtp_user))
-    # -----------------------------------------------
-    #           Методы, которые нужно определить
-    # -----------------------------------------------
-    @abstractmethod
-    def build_subject(self) -> str:
-        pass
 
+    # -----------------------------------------------
+    # Методы, которые нужно определить в наследниках
+    # -----------------------------------------------
     @abstractmethod
     def build_body(self) -> str:
+        """Тело письма — обязателен к переопределению"""
         pass
 
+    def build_subject_core(self) -> str:
+        """
+        Основная тема письма.
+        Необязательная переопределяемая часть.
+        По умолчанию возвращает generic-тему.
+        """
+        return "Обновление данных для отправлений"
+
+    def build_subject(self) -> str:
+        """
+        Полная тема письма с названием магазина.
+        Все наследники будут автоматически использовать shop_name.
+        """
+        return f"[{NAME_SHOP}] {self.build_subject_core()}"
+
+    # -----------------------------------------------
+    # Вложения (можно переопределить)
+    # -----------------------------------------------
     def build_attachments(self) -> List[Path]:
-        """Можно переопределить, если есть вложения"""
         return []
 
+    # -----------------------------------------------
+    # Подпись письма
+    # -----------------------------------------------
     def build_signature(self) -> str:
         return (
             "\n\n\n"
@@ -50,7 +71,7 @@ class BaseMailer(ABC):
         )
 
     # -----------------------------------------------
-    #               Основной процесс отправки
+    # Основной процесс отправки
     # -----------------------------------------------
     def send(self):
         subject = self.build_subject()
