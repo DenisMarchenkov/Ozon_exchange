@@ -2,9 +2,10 @@ import math
 import pandas as pd
 
 from typing import Dict
+from Common.time import now_iso
 from Prices.settings_app.settings_prices import MISSING_DATA_MARKUP, MISSING_COEFFICIENT_OLD_PRICE, MISSING_COEFFICIENT_MIN_PRICE
 from Common.logger import get_logger
-logger = get_logger("Prices")
+logger = get_logger(__name__)
 
 class MarkupReader:
     """
@@ -148,9 +149,11 @@ class PricingEngine:
         - признак ручной наценки
     """
 
-    def __init__(self, global_data: dict, manual_data: dict):
+    def __init__(self, global_data: dict, manual_data: dict, price_repo, supplier_price_id: str):
         self.global_data = global_data or {}
         self.manual_map = manual_data or {}
+        self.price_repo = price_repo
+        self.supplier_price_id = supplier_price_id
 
         logger.info("Инициализация ценового движка.")
 
@@ -309,9 +312,18 @@ class PricingEngine:
 
     def build_ozon_record(self, sku: str, supplier_price: float, calc: dict) -> dict:
         """Создаёт структуру записи для API Ozon."""
-        logger.info(
+        final_calc = self.finalize_calc(calc)
+        logger.debug(
             f"SKU={sku} | поставщик={supplier_price} | min={round(calc['min_price'])} | "
             f"price={round(calc['price'])} | old={round(calc['old_price'])} | manual={calc['manual']}"
+        )
+
+        self.price_repo.save_price_calculation(
+            supplier_price_id=self.supplier_price_id,
+            sku_art=sku,
+            supplier_price=supplier_price,
+            calc=final_calc,
+            created_at=now_iso()
         )
 
         return {
@@ -319,11 +331,11 @@ class PricingEngine:
             "auto_add_to_ozon_actions_list_enabled": "UNKNOWN",
             "currency_code": "RUB",
             "manage_elastic_boosting_through_price": False,
-            "min_price": str(round(calc["min_price"])),
+            "min_price": str(final_calc["min_price"]),
             "min_price_for_auto_actions_enabled": True,
             "offer_id": sku,
-            "old_price": str(round(calc["old_price"])),
-            "price": str(round(calc["price"])),
+            "old_price": str(final_calc["old_price"]),
+            "price": str(final_calc["price"]),
             "price_strategy_enabled": "UNKNOWN",
         }
 
@@ -363,6 +375,27 @@ class PricingEngine:
 
         logger.info(f"Цены сформированы: {len(result)} позиций.")
         return result
+
+    @staticmethod
+    def finalize_calc(calc: dict[str, float | bool]) -> dict[str, int | bool]:
+        """
+        Округляет все цены по правилам для Ozon и БД.
+        Возвращает финальный словарь с int значениями для price, min_price, old_price.
+        """
+        def round_price(value: float) -> int:
+            # пример твоего правила: округляем до целого,
+            # если заканчивается на 5, то округляем вниз
+            rounded = int(value + 0.5)
+            if (value * 10) % 10 == 5:  # если десятая равна 5
+                rounded = int(value)
+            return rounded
+
+        return {
+            "price": round_price(calc["price"]),
+            "min_price": round_price(calc["min_price"]),
+            "old_price": round_price(calc["old_price"]),
+            "manual": calc["manual"],
+        }
 
 
 # =================================================================

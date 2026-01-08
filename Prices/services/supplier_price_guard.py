@@ -2,7 +2,7 @@ from Common.logger import get_logger
 from Common.time import now_iso
 from Prices.utils.file_utils import extract_excel_metadata
 
-logger = get_logger("Prices")
+logger = get_logger(__name__)
 
 
 class SupplierPriceGuard:
@@ -31,10 +31,10 @@ class SupplierPriceGuard:
             )
             return None
 
-        self.repo.save(metadata, self.supplier_id, now_iso())
+        supplier_price_id = self.repo.save(metadata, self.supplier_id, now_iso())
         logger.info(
             "Зафиксирован новый файл: %s (hash=%s)",
             metadata["name"],
             metadata["file_hash"],
         )
-        return metadata
+        return metadata, supplier_price_id

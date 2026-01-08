@@ -20,11 +20,11 @@ def main():
     # ============================================================
     file_supplier = copy_file_with_timestamp(SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER)
     guard = SupplierPriceGuard(repo_prices, int(SUPPLIER_ID))
-
-    metadata = guard.check(file_supplier)
-    if not metadata:
+    result = guard.check(file_supplier)
+    if not result:
         return
 
+    metadata, supplier_price_id = result
 
     # ============================================================
     # 2. ЧИТАЕМ ДАННЫЕ ИЗ ФАЙЛА
@@ -39,9 +39,9 @@ def main():
     # ============================================================
     # 3. РАСЧЕТ ЦЕН
     # ============================================================
-    engine = PricingEngine(markups["global"], markups["manual"])
+    engine = PricingEngine(markups["global"], markups["manual"],
+                           repo_prices, supplier_price_id=supplier_price_id)
     prices = engine.run(products)
-
 
     # ============================================================
     # 4. ОБНОВЛЕНИЕ ЦЕН

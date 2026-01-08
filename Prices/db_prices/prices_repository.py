@@ -34,6 +34,28 @@ class SupplierPriceHashRepository:
                 )
             """)
 
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS price_calculations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            supplier_price_id INTEGER NOT NULL,   -- связь с файлом поставщика
+            sku_art TEXT NOT NULL,
+        
+            supplier_price REAL NOT NULL,
+        
+            min_price REAL NOT NULL,
+            price REAL NOT NULL,
+            old_price REAL NOT NULL,
+        
+            manual INTEGER NOT NULL,               -- 0 / 1
+            created_at TEXT NOT NULL,
+        
+            FOREIGN KEY (supplier_price_id)
+                REFERENCES supplier_prices(id)
+                ON DELETE CASCADE
+            )
+        """)
+
 
     def get_last_hash(self, supplier_id: int) -> Optional[str]:
         """
@@ -95,6 +117,7 @@ class SupplierPriceHashRepository:
                 ),
             )
             conn.commit()
+            return cur.lastrowid
 
     def get_all(self):
 
@@ -106,6 +129,38 @@ class SupplierPriceHashRepository:
                 FROM supplier_prices
                 """)
         return [self._row_to_dict(r) for r in cur.fetchall()]
+
+    def save_price_calculation(
+            self,
+            supplier_price_id: int,
+            sku_art: str,
+            supplier_price: float,
+            calc: dict,
+            created_at: str,
+    ):
+        with self._get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO price_calculations (
+                    supplier_price_id,
+                    sku_art,
+                    supplier_price,
+                    min_price,
+                    price,
+                    old_price,
+                    manual,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                supplier_price_id,
+                sku_art,
+                supplier_price,
+                calc["min_price"],
+                calc["price"],
+                calc["old_price"],
+                int(calc["manual"]),
+                created_at,
+            ))
 
     @staticmethod
     def _row_to_dict(row: sqlite3.Row) -> dict:
