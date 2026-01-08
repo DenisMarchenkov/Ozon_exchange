@@ -24,4 +24,5 @@ ARCHIVE_DIR_WAREHOUSE = os.path.join(ARCHIVE_DIR, "Warehouse_files")
 os.makedirs(ARCHIVE_DIR_WAREHOUSE, exist_ok=True)
 
 # коды подразделения
-OZON_DIVISION = {16176, "16177", "OZON_FBS"}
+OZON_DIVISION = {16176, "16176", "OZON_FBS"}
+OTHER_DIVISION = {16177, "16177", "OTHER_FBS"}

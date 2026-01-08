@@ -9,13 +9,14 @@ from Confirmations.services.confirmations.confirmations_recorder import Confirma
 from Confirmations.services.confirmations.confirmations_reader import ConfirmationsReader
 from Confirmations.services.archive_file_manager import ArchiveFileManager
 from Confirmations.services.mailers.mailer_dispatch import DispatchMailer
+from Confirmations.services.mailers.mailer_error import ErrorMailer
 from Confirmations.services.mailers.mailer_shortage import ShortageMailer
 from Confirmations.ozon_flow import run_ozon_flow
 
 from Confirmations.settings_app.settings_confirmations import (
     CONFIRMATIONS_DIR,
     SETTINGS_APP_DIR,
-    ARCHIVE_DIR_CONFIRMATIONS, OZON_DIVISION,
+    ARCHIVE_DIR_CONFIRMATIONS, OZON_DIVISION, OTHER_DIVISION,
 )
 
 logger = get_logger(__name__)
@@ -75,7 +76,7 @@ def main():
     all_confirmations = confirmed + error
 
     ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
-    other_confirmations = [c for c in all_confirmations if c["division_id"] not in OZON_DIVISION]
+    other_confirmations = [c for c in all_confirmations if c["division_id"] in OTHER_DIVISION]
 
 
     # ============================================================
@@ -117,44 +118,16 @@ def main():
 
 
     # ============================================================
-    # 8. TODO ПИСЬМО ОБ ОШИБКАХ??? не помню, нужно разобраться
+    # 8. ПИСЬМО О ЗАКАЗАХ СО СТАТУСОМ "ERROR" ПОСЛЕ ОБМЕНА
     # ============================================================
-    # remaining_errors = [c for c in ozon_confirmations if c["status"] == "error"]
-    # #remaining_errors = confirmations_repo.get_by_status("error")
-    #
-    # if remaining_errors:
-    #     logger.warning("Остались неподтверждённые заказы после повторной попытки")
-    #     mailer = ErrorMailer(error_rows=remaining_errors)
-    #     mailer.send()
-    # else:
-    #     logger.info("Нет данных для письма об ошибках")
-    #
-    # logger.info("=== Проверка подтверждений завершена ===")
+    remaining_errors = confirmations_repo.get_by_status("error")
+    if remaining_errors:
+        logger.warning("После обмена данными стались заказы со статусом [error]")
+        mailer = ErrorMailer(error_rows=remaining_errors)
+        mailer.send()
+
+    logger.info("=== Проверка подтверждений завершена ===")
 
 
 if __name__ == "__main__":
     main()
-
-
-    repo_conf = ConfirmationsRepository(DB_PATH)
-    repo_disp = DispatchRepository(DB_PATH)
-    row = repo_conf.get_all()
-
-    for r in row:
-        print(r)
-    print("--------------------------------------------")
-
-    row = repo_conf.get_all_items()
-    for r in row:
-        print(r)
-    print("--------------------------------------------")
-
-    row = repo_disp.get_all_dispatch()
-    for r in row:
-        print(r)
-    print("--------------------------------------------")
-
-    row = repo_disp.get_all_files()
-    for r in row:
-        print(r)
-    print("--------------------------------------------")

@@ -1,10 +1,8 @@
 import os
-from pprint import pprint
 
 from Orders.dbf_tools.dbf_writer import save_to_dbf
 from Orders.settings_app.settings_orders import ORDERS_DIR, CUSTOMER_ID_IN_SUPPLIER_CRM, DIVISION_ID_IN_SUPPLIER_CRM, SHOP_NAME
 from Common.logger import get_logger
-#from Orders.services.db_orders import get_order_status, create_order, update_order_status
 from Orders.db_orders.orders_repository import OrdersRepository
 
 logger = get_logger("Orders")
@@ -36,7 +34,6 @@ def save_to_files_server_response(resp):
             continue
 
         products = posting.get('products') or []
-        pprint(products)
         requirements = posting.get('requirements') or {}
         non_empty_requirements = {
             key: value
@@ -60,8 +57,6 @@ def save_to_files_server_response(resp):
                 for p in products
             ]
 
-
-            pprint(items)
 
             items = [i for i in items if i["quantity"] > 0 and i["offer_id"]]
             if not items:

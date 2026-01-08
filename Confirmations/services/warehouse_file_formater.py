@@ -3,6 +3,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.styles import Alignment, Border, Side, Font, PatternFill
 from openpyxl.worksheet.page import PageMargins
 
+from Common.settings import NAME_SHOP
+
 
 class WarehouseExcelFormatter:
     def __init__(self, file_path: str):
@@ -40,7 +42,7 @@ class WarehouseExcelFormatter:
 
     def format_orders_summary(self, sheet: Worksheet):
         sheet.insert_rows(1)
-        sheet["A1"].value = "СВОДКА ПО ЗАКАЗАМ"
+        sheet["A1"].value = f"[{NAME_SHOP}] СВОДКА ПО ЗАКАЗАМ"
         sheet["A1"].font = Font(name="Calibri", size=20, bold=True)
 
         sheet.column_dimensions["A"].width = 31
@@ -61,7 +63,7 @@ class WarehouseExcelFormatter:
 
     def format_items_summary(self, sheet: Worksheet):
         sheet.insert_rows(1)
-        sheet["A1"].value = "СВОДКА ПО БРЕНДАМ"
+        sheet["A1"].value = f"[{NAME_SHOP}] СВОДКА ПО БРЕНДАМ"
         sheet["A1"].font = Font(name="Calibri", size=20, bold=True)
 
         sheet.column_dimensions["A"].width = 15  # бренд
@@ -109,7 +111,7 @@ class WarehouseExcelFormatter:
     def format_full_data(self, sheet: Worksheet):
         sheet.page_setup.orientation = 'landscape'
         sheet.insert_rows(1)
-        sheet["A1"].value = "ЛИСТ ПОДБОРА ЗАКАЗОВ"
+        sheet["A1"].value = f"[{NAME_SHOP}] ЛИСТ ПОДБОРА ЗАКАЗОВ"
         sheet["A1"].font = Font(name="Calibri", size=20, bold=True)
 
         sheet.column_dimensions["A"].width = 27  # номер заказа

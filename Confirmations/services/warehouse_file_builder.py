@@ -4,6 +4,7 @@ from typing import Iterable
 import pandas as pd
 from pathlib import Path
 from Common.logger import get_logger
+from Common.settings import NAME_SHOP
 from Confirmations.settings_app.settings_confirmations import ARCHIVE_DIR_WAREHOUSE
 
 from openpyxl import load_workbook
@@ -169,13 +170,13 @@ class WarehouseFileBuilder:
             wb = load_workbook(file_path)
 
             # TODO суффикс - название магазина, вынести в настройки
-            formatter.apply_common(wb["Orders Summary"], "ORDERS")
+            formatter.apply_common(wb["Orders Summary"], NAME_SHOP)
             formatter.format_orders_summary(wb["Orders Summary"])
 
-            formatter.apply_common(wb["Items by Brand"], "ITEMS")
+            formatter.apply_common(wb["Items by Brand"], NAME_SHOP)
             formatter.format_items_summary(wb["Items by Brand"])
 
-            formatter.apply_common(wb["Full Data"], "FULL")
+            formatter.apply_common(wb["Full Data"], NAME_SHOP)
             formatter.format_full_data(wb["Full Data"])
             wb.save(file_path)
 

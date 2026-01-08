@@ -17,7 +17,7 @@ class ErrorMailer(BaseMailer):
         self.error_rows = list(error_rows)
 
     def build_subject_core(self) -> str:
-        return "Ошибка при переводе подтверждений в статус 'ожидает отгрузки' в OZON"
+        return "Ошибка при переводе подтверждений в статус 'ожидает отгрузки'"
 
     def build_body(self) -> str:
         if not self.error_rows:
@@ -38,7 +38,6 @@ class ErrorMailer(BaseMailer):
         for posting_number, items in confirmations.items():
             body_lines.append(f"Подтверждение: {posting_number}")
             for item in items:
-                print(item)
                 line = (
                     f"----- SKU: {item['sku_code']} / {item['sku_art']}\n"
                     f"----- Наименование: {item['name']}\n"

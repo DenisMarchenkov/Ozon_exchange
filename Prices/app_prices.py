@@ -57,8 +57,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    repo_pr = SupplierPriceHashRepository(DB_PATH)
-    repo = repo_pr.get_all()
-    for row in repo:
-        print(row)
