@@ -169,7 +169,6 @@ class WarehouseFileBuilder:
             formatter = WarehouseExcelFormatter(str(file_path))
             wb = load_workbook(file_path)
 
-            # TODO суффикс - название магазина, вынести в настройки
             formatter.apply_common(wb["Orders Summary"], NAME_SHOP)
             formatter.format_orders_summary(wb["Orders Summary"])
 

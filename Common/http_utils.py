@@ -96,6 +96,7 @@ def send_request_with_retries(
 
             if response.status_code == 200:
                 logger.info(f"Successfully sent request to {url}")
+                #logger.info(f"API RESPONSE: {response.json()}")
                 return response.json()
             elif 500 <= response.status_code < 600:
                 logger.warning(f"Ошибка 5xx ({response.status_code}) — попытка {attempt + 1}/{max_attempts}")

@@ -22,6 +22,7 @@ def main():
     guard = SupplierPriceGuard(repo_prices, int(SUPPLIER_ID))
     result = guard.check(file_supplier)
     if not result:
+        logger.info("=== Обмен ценами завершен ===")
         return
 
     metadata, supplier_price_id = result
