@@ -4,7 +4,7 @@ from Common.settings import DB_PATH
 from Confirmations.services.dispatch.DispatchRetryService import DispatchRetryService
 from Confirmations.services.dispatch.DispatchPrepareService import DispatchPrepareService
 from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
-from Confirmations.services.labels.labels_generatior import LabelsGenerator
+from Confirmations.services.labels.ozon_labels_generator import LabelsGenerator
 from Confirmations.services.mailers.mailer_gtd_update import GTDAutoUpdateMailer
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.confirmations.confirmations_status_updater import ConfirmationsStatusUpdater
@@ -72,11 +72,16 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
         mailer = GTDAutoUpdateMailer(update_gtd_data)
         mailer.send()
 
-
     # ============================================================
-    # 4. DISPATCH: RETRY → PREPARE
+    # 4. Инициализация генератора ярлыков
     # ============================================================
     labels_generator = LabelsGenerator()
+
+
+    # ============================================================
+    # 5. Инициализация файлового сервиса Dispatch
+    # ============================================================
+
     files_service = DispatchFilesService(
         dispatch_repo=dispatch_repo,
         confirmations_repo=confirmations_repo,
@@ -84,14 +89,18 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
         warehouse_builder_cls=lambda rows: WarehouseFileBuilder(rows, suffix="OZON"),
     )
 
-    # --- retry ERROR dispatch ---
+    # ============================================================
+    # 6. Retry failed dispatch
+    # ============================================================
     retry_service = DispatchRetryService(
         dispatch_repo=dispatch_repo,
         files_service=files_service,
     )
     retry_service.retry_failed()
 
-    # --- prepare новый dispatch с блокировкой только OZON-подтверждений ---
+    # ============================================================
+    # 7. Prepare новый dispatch с блокировкой только OZON-подтверждений
+    # ============================================================
     dispatch_id = f"dispatch_{now_iso()}_OZON"
     prepare_service = DispatchPrepareService(
         dispatch_repo=dispatch_repo,

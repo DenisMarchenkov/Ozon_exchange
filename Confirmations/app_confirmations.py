@@ -1,4 +1,5 @@
 import os
+from Common.file_policy import FilePolicy
 from Common.logger import get_logger
 from Common.settings import DB_PATH
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
@@ -16,8 +17,9 @@ from Confirmations.ozon_flow import run_ozon_flow
 from Confirmations.settings_app.settings_confirmations import (
     CONFIRMATIONS_DIR,
     SETTINGS_APP_DIR,
-    ARCHIVE_DIR_CONFIRMATIONS, OZON_DIVISION, OTHER_DIVISION,
+    ARCHIVE_DIR_CONFIRMATIONS, OZON_DIVISION, OTHER_DIVISION, YANDEX_DIVISION, ALLOWED_DIVISIONS,
 )
+from Confirmations.yandex_flow import run_yandex_flow
 
 logger = get_logger(__name__)
 
@@ -27,11 +29,18 @@ def main():
     logger.info("=== Запуск проверки подтверждений ===")
 
     # ============================================================
-    # 1. ЧТЕНИЕ ПОДТВЕРЖДЕНИЙ
+    # 1. ФИЛЬТРАЦИЯ И ЧТЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
+    policy = FilePolicy(
+        filename_regex=None, # маска файла (регулярное выражение, например r"^[\d-]+_\d+\.xls$")
+        ignored_divisions=None, # черный список
+        allowed_divisions=ALLOWED_DIVISIONS, # белый список
+    )
+
     reader = ConfirmationsReader(
         folder_path=CONFIRMATIONS_DIR,
         mapping_file=os.path.join(SETTINGS_APP_DIR, "column_map.json"),
+        file_policy=policy,
     )
     df = reader.read()
 
@@ -48,7 +57,8 @@ def main():
     file_manager = ArchiveFileManager(
         inbox_dir=CONFIRMATIONS_DIR,
         archive_dir=ARCHIVE_DIR_CONFIRMATIONS,
-        dry_run=True,
+        dry_run=False,
+        file_policy=policy,
     )
     file_manager.archive_all()
 
@@ -77,6 +87,7 @@ def main():
 
     ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
     other_confirmations = [c for c in all_confirmations if c["division_id"] in OTHER_DIVISION]
+    yandex_confirmations = [c for c in all_confirmations if c["division_id"] in YANDEX_DIVISION]
 
 
     # ============================================================
@@ -92,6 +103,9 @@ def main():
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
         run_other_flow(other_confirmations, confirmations_repo ,dispatch_repo)
 
+    if yandex_confirmations:
+        logger.info(f"запуск сценария для {len(yandex_confirmations)} заказов ЯНДЕКС")
+        run_yandex_flow(yandex_confirmations, confirmations_repo ,dispatch_repo)
 
     # ============================================================
     # 7. ОТПРАВКА НА СКЛАД ОБРАБОТАННЫХ ДАННЫХ

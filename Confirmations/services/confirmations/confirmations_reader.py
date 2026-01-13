@@ -5,13 +5,19 @@ from pathlib import Path
 import pandas as pd
 
 from Common.base_reader_excel import BaseExcelReader
+from Common.file_policy import FilePolicy
 from Confirmations.settings_app.settings_confirmations import SETTINGS_APP_DIR
 
 
 class ConfirmationsReader(BaseExcelReader):
 
-    def __init__(self, folder_path: str, mapping_file: str = None):
-        super().__init__(folder_path)
+    def __init__(
+        self,
+        folder_path: str,
+        mapping_file: str = None,
+        file_policy: FilePolicy | None = None,
+    ):
+        super().__init__(folder_path, file_policy=file_policy)
 
         if mapping_file is None:
             mapping_file = os.path.join(SETTINGS_APP_DIR, "column_map.json")

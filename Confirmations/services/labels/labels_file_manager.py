@@ -31,7 +31,7 @@ class LabelsFileManager:
 
     # -------------------------------------------------
 
-    def save(self, file_url: str) -> Path:
+    def save_labels(self, file_url: str) -> Path:
         file_path = self.base_dir / self._build_filename()
 
         if DEV_MODE:

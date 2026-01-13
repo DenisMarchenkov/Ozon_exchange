@@ -37,7 +37,7 @@ class LabelsGenerator:
         result = self._wait_task(task_id)
 
         if result.get("status") == "completed" and result.get("file_url"):
-            path = self.files.save(result["file_url"])
+            path = self.files.save_labels(result["file_url"])
             self.repo.update_stickers_status(postings, "ready", now_iso())
             logger.info(f"Наклейки сохранены: {path}")
             return path
