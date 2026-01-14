@@ -57,7 +57,7 @@ def main():
     file_manager = ArchiveFileManager(
         inbox_dir=CONFIRMATIONS_DIR,
         archive_dir=ARCHIVE_DIR_CONFIRMATIONS,
-        dry_run=False,
+        dry_run=False, # True для тестов - не переносим файлы в архив, только логируем
         file_policy=policy,
     )
     file_manager.archive_all()
@@ -71,7 +71,7 @@ def main():
     if refused_items:
         logger.warning("Есть отказанные позиции")
         mailer = ShortageMailer(shortage_rows=refused_items)
-        #mailer.send()
+        mailer.send()
     else:
         logger.info("Нет данных для письма о нехватке товара")
 
@@ -122,7 +122,7 @@ def main():
                 raise RuntimeError("Нет файлов для отправки")
 
             mailer = DispatchMailer(dispatch_files, processing_orders)
-            #mailer.send()
+            mailer.send()
 
             dispatch_repo.update_status(d_id, "SHIPPED_TO_STOCK")
 
