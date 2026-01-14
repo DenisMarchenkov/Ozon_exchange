@@ -17,3 +17,6 @@ MARKUP_FILE = os.path.join(SETTINGS_APP_DIR, "price change log.xlsx")
 MISSING_DATA_MARKUP = 2.8
 MISSING_COEFFICIENT_OLD_PRICE = 0.1
 MISSING_COEFFICIENT_MIN_PRICE = 0.05
+
+# НДС для передачи в запросе обновления цен
+VAT = "0.22"

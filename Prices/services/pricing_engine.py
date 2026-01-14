@@ -3,7 +3,8 @@ import pandas as pd
 
 from typing import Dict
 from Common.time import now_iso
-from Prices.settings_app.settings_prices import MISSING_DATA_MARKUP, MISSING_COEFFICIENT_OLD_PRICE, MISSING_COEFFICIENT_MIN_PRICE
+from Prices.settings_app.settings_prices import MISSING_DATA_MARKUP, MISSING_COEFFICIENT_OLD_PRICE, \
+    MISSING_COEFFICIENT_MIN_PRICE, VAT
 from Common.logger import get_logger
 logger = get_logger(__name__)
 
@@ -337,6 +338,7 @@ class PricingEngine:
             "old_price": str(final_calc["old_price"]),
             "price": str(final_calc["price"]),
             "price_strategy_enabled": "UNKNOWN",
+            "vat": VAT,
         }
 
     def process_product(self, product: dict) -> dict | None:
