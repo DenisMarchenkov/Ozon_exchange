@@ -60,12 +60,13 @@ os.makedirs(SUPPLIER_PRICE_FOLDER, exist_ok=True)
 # ============================================================
 # 🔹 FTP / ИСТОЧНИК ПОСТАВЩИКА (DEV / PROD)
 # ============================================================
+FTP_PATH = "/srv/ftpdata"
+
 if DEV_MODE:
     # 🔧 ЛОКАЛЬНАЯ ЭМУЛЯЦИЯ FTP
     SUPPLIER_SOURCE = r"C:\Users\dmarc\PycharmProjects"
 else:
     # 🚀 БОЕВОЙ FTP НА VDS
-    FTP_PATH = "/srv/ftpdata"
     SUPPLIER_SOURCE = os.path.join(FTP_PATH, "Prices", NAME_SHOP)
 
 
