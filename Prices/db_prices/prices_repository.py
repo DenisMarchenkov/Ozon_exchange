@@ -93,7 +93,7 @@ class SupplierPriceHashRepository:
             )
             return cur.fetchone() is not None
 
-    def save(self, metadata: dict, supplier_id: int, created_at: str) -> None:
+    def save_hash(self, metadata: dict, supplier_id: int, created_at: str) -> None:
         """
         Сохраняет хеш файла поставщика
         """

@@ -1,8 +1,8 @@
 import os
 
-from Common.settings import SUPPLIER_SOURCE, BASE_DIR, ARCHIVE_DIR
+from Common.settings import BASE_DIR, ARCHIVE_DIR, NAME_SHOP, FTP_PATH
 
-CONFIRMATIONS_DIR = os.path.join(SUPPLIER_SOURCE, "Confirmations")
+CONFIRMATIONS_DIR = os.path.join(FTP_PATH, "Confirmations", NAME_SHOP)
 os.makedirs(CONFIRMATIONS_DIR, exist_ok=True)
 
 # папка с приложением
@@ -23,11 +23,13 @@ os.makedirs(ARCHIVE_DIR_LABELS, exist_ok=True)
 ARCHIVE_DIR_WAREHOUSE = os.path.join(ARCHIVE_DIR, "Warehouse_files")
 os.makedirs(ARCHIVE_DIR_WAREHOUSE, exist_ok=True)
 
-# коды подразделения
-OZON_DIVISION = {16176, "16176"}
+# коды подразделения для разделения на потоки обработки
+OZON_DIVISION = {19520, "19520"}
 OTHER_DIVISION = {16177, "16177"}
 YANDEX_DIVISION = {16178, "16178"}
+
 # разрешенные к обработке коды подразделений, для FilePolicy при чтении файлов
-ALLOWED_DIVISIONS = {
-    str(x) for x in (OZON_DIVISION | OTHER_DIVISION)
-}
+ALLOWED_DIVISIONS = {str(x) for x in OZON_DIVISION}
+# ALLOWED_DIVISIONS = {
+#     str(x) for x in (OZON_DIVISION | OTHER_DIVISION | YANDEX_DIVISION)
+# }

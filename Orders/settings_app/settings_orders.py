@@ -1,14 +1,10 @@
 import os
 
-from Common.settings import SUPPLIER_SOURCE
+from Common.settings import FTP_PATH, NAME_SHOP
 
-
-
-ORDERS_DIR = os.path.join(SUPPLIER_SOURCE, "Orders")
+ORDERS_DIR = os.path.join(FTP_PATH, "Orders", NAME_SHOP)
 os.makedirs(ORDERS_DIR, exist_ok=True)
 
-
 # Данные для записи в файл заказа .dbf
-SHOP_NAME = "Best seller ever"
-DIVISION_ID_IN_SUPPLIER_CRM = 10001
-CUSTOMER_ID_IN_SUPPLIER_CRM = 101
+DIVISION_ID_IN_SUPPLIER_CRM = 19520
+CUSTOMER_ID_IN_SUPPLIER_CRM = 994

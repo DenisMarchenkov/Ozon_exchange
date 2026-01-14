@@ -13,10 +13,8 @@ logger = get_logger(__name__)
 class BaseMailer(ABC):
     """
     Базовый класс для всех писем.
-    Добавляет shop_name в тему письма по умолчанию.
+    Добавляет name_shop в тему письма по умолчанию.
     """
-
-    #DEFAULT_SHOP_NAME = "OZON"  # <-- здесь можно указать магазин по умолчанию
 
     def __init__(
         self,
@@ -49,7 +47,7 @@ class BaseMailer(ABC):
     def build_subject(self) -> str:
         """
         Полная тема письма с названием магазина.
-        Все наследники будут автоматически использовать shop_name.
+        Все наследники будут автоматически использовать name_shop.
         """
         return f"[{NAME_SHOP}] {self.build_subject_core()}"
 

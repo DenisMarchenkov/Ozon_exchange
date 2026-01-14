@@ -1,7 +1,8 @@
 import os
 
+from Common.settings import NAME_SHOP
 from Orders.dbf_tools.dbf_writer import save_to_dbf
-from Orders.settings_app.settings_orders import ORDERS_DIR, CUSTOMER_ID_IN_SUPPLIER_CRM, DIVISION_ID_IN_SUPPLIER_CRM, SHOP_NAME
+from Orders.settings_app.settings_orders import ORDERS_DIR, CUSTOMER_ID_IN_SUPPLIER_CRM, DIVISION_ID_IN_SUPPLIER_CRM
 from Common.logger import get_logger
 from Orders.db_orders.orders_repository import OrdersRepository
 
@@ -79,7 +80,7 @@ def save_to_files_server_response(resp):
         filename = os.path.join(ORDERS_DIR, f"{posting_number}.dbf")
         order_date_iso = posting.get('in_process_at')
         shipment_date_iso = posting.get('shipment_date')
-        comment_for_supplier = f'{posting_number} Заказ OZON {SHOP_NAME}'
+        comment_for_supplier = f'{posting_number} Заказ OZON {NAME_SHOP}'
 
         if not products:
             logger.info(f"Posting {posting_number} не содержит products")

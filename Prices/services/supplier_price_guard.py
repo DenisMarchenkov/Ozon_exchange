@@ -31,7 +31,7 @@ class SupplierPriceGuard:
             )
             return None
 
-        supplier_price_id = self.repo.save_labels(metadata, self.supplier_id, now_iso())
+        supplier_price_id = self.repo.save_hash(metadata, self.supplier_id, now_iso())
         logger.info(
             "Зафиксирован новый файл: %s (hash=%s)",
             metadata["name"],

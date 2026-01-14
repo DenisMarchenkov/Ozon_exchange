@@ -1,4 +1,3 @@
-# Файл с наценками
 import os
 
 from Common.settings import BASE_DIR

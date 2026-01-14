@@ -8,6 +8,14 @@ DEV_MODE = True   # True → локально, False → VDS
 
 
 # ============================================================
+# 🔹 НАСТРОЙКИ МАГАЗИНА
+# ============================================================
+SUPPLIER_ID = "10001" # ДИСТРИФАРМ - внутренний ID, не используется (задел на будущее)
+NAME_SHOP = "Farmaderm"
+SHORT_NAME_SHOP = "FD"
+
+
+# ============================================================
 # 🔹 ЗАГРУЗКА .env
 # ============================================================
 load_dotenv()   # загружает переменные из .env
@@ -57,12 +65,12 @@ if DEV_MODE:
     SUPPLIER_SOURCE = r"C:\Users\dmarc\PycharmProjects"
 else:
     # 🚀 БОЕВОЙ FTP НА VDS
-    SUPPLIER_SOURCE = r"/srv/ftpdata/Prices/Farmaderm/"
+    FTP_PATH = "/srv/ftpdata"
+    SUPPLIER_SOURCE = os.path.join(FTP_PATH, "Prices", NAME_SHOP)
 
-
-SUPPLIER_PRICE_FILENAME = "stock-update-template_with_price_FD.xls"
 
 # Исходный файл от поставщика
+SUPPLIER_PRICE_FILENAME = "stock-update-template_with_price_FD.xls"
 SUPPLIER_SOURCE_FILE = os.path.join(SUPPLIER_SOURCE, SUPPLIER_PRICE_FILENAME)
 
 
@@ -86,13 +94,6 @@ MAILER_LOGIN = os.getenv("MAILER_LOGIN")
 MAILER_PASSWORD = os.getenv("MAILER_PASSWORD_API")
 RECIPIENT_ADMIN = ["Dmarchenkov@gmail.com"]
 
-
-# ============================================================
-# 🔹 НАСТРОЙКИ МАГАЗИНА
-# ============================================================
-SUPPLIER_ID = "10001" # ДИСТРИФАРМ - внутренний ID
-NAME_SHOP = "Farmaderm"
-SHORT_NAME_SHOP = "FD"
 
 # ============================================================
 # 🔹 ЗАЩИТА ОТ СЛУЧАЙНОГО PROD НА WINDOWS
