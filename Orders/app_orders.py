@@ -1,4 +1,4 @@
-from api.ozon_api import get_unfulfilled_postings
+from Orders.api.ozon_api import get_unfulfilled_postings
 from services.order_processor import save_to_files_server_response
 from Common.logger import get_logger
 
