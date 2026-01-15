@@ -9,10 +9,10 @@ from Orders.db_orders.orders_repository import OrdersRepository
 logger = get_logger("Orders")
 
 
-def save_to_files_server_response(resp):
+def save_to_files_server_response(resp, db):
     os.makedirs(ORDERS_DIR, exist_ok=True)
 
-    repo = OrdersRepository()
+    repo = OrdersRepository(db)
 
     if not resp or 'result' not in resp or 'postings' not in resp['result']:
         logger.error("Неправильный ответ от API: нет 'result.postings'")
@@ -73,9 +73,6 @@ def save_to_files_server_response(resp):
                 items=items
             )
 
-            for req_type, values in non_empty_requirements.items():
-                for value in values:
-                    repo.create_requirements(posting_number, req_type, value)
 
         filename = os.path.join(ORDERS_DIR, f"{posting_number}.dbf")
         order_date_iso = posting.get('in_process_at')

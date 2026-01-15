@@ -2,8 +2,6 @@ import sqlite3
 from typing import List, Dict
 from datetime import datetime, timezone
 
-from Common.settings import DB_PATH
-
 
 class ConfirmationsRepository:
     """
@@ -13,91 +11,12 @@ class ConfirmationsRepository:
     confirmations привязываются к dispatch через confirmations.dispatch_id
     """
 
-    def __init__(self, db_path=DB_PATH):
-        self.db_path = db_path
-        self._init_db()
-
-    # ------------------------------
-    # Подключение к БД
-    # ------------------------------
-    def _get_conn(self):
-        conn = sqlite3.connect(self.db_path, timeout=30)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    # ------------------------------
-    # Инициализация таблиц
-    # ------------------------------
-    def _init_db(self):
-        with self._get_conn() as conn:
-            cur = conn.cursor()
-
-            cur.execute("PRAGMA foreign_keys = ON;")
-            cur.execute("PRAGMA journal_mode = WAL;")
-            cur.execute("PRAGMA synchronous = NORMAL;")
-
-            # Confirmations (postings)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS confirmations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    posting_number TEXT NOT NULL UNIQUE,
-                    division_id INTEGER NOT NULL,
-                    status TEXT NOT NULL,
-                    error_message TEXT,
-                    source_file TEXT,
-                    stickers TEXT DEFAULT 'not_ready',
-                    stickers_error TEXT,
-                    dispatch_id TEXT,
-                    ordered_at TEXT,
-                    shipped_at TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-            """)
-
-            # Confirmation items
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS confirmation_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    confirmation_id INTEGER NOT NULL,
-                    sku_code INTEGER NOT NULL,
-                    sku_art TEXT NOT NULL,
-                    name TEXT,
-                    quantity_confirm INTEGER NOT NULL,
-                    quantity_refused INTEGER NOT NULL,
-                    item_status TEXT NOT NULL,
-                    price_with_vat REAL,
-                    gtd TEXT,
-                    date_expiration TEXT,
-                    brand TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY (confirmation_id)
-                        REFERENCES confirmations(id)
-                        ON DELETE CASCADE
-                )
-            """)
-
-            # Exemplars in postings ozon
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS exemplars_status (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                exemplar_id INTEGER NOT NULL,
-                product_id INTEGER NOT NULL,
-                status TEXT NOT NULL
-                
-                
-                )
-            """)
-
-
-            # Индекс для lock_postings
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_confirmations_lock
-                ON confirmations(status, stickers, dispatch_id)
-            """)
-
-            conn.commit()
+    def __init__(self,  db=None):
+        if db is None:
+            from Common.settings import DB_PATH
+            from Common.db.database import Database
+            db = Database(DB_PATH)
+        self.db = db
 
     # ------------------------------
     # Helpers
@@ -125,7 +44,7 @@ class ConfirmationsRepository:
         created_at: str,
         updated_at: str
     ) -> int:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO confirmations
@@ -136,7 +55,7 @@ class ConfirmationsRepository:
             return cur.lastrowid
 
     def get_by_posting(self, posting_number: str) -> Dict | None:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT * FROM confirmations
@@ -146,7 +65,7 @@ class ConfirmationsRepository:
             return dict(row) if row else None
 
     def get_by_status(self, status: str) -> List[Dict]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute(
                 """
@@ -159,7 +78,7 @@ class ConfirmationsRepository:
 
 
     def update_status(self, posting_number: str, status: str):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 UPDATE confirmations
@@ -178,7 +97,7 @@ class ConfirmationsRepository:
         """
         now = self._now()
 
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
 
             cur.execute("""
@@ -206,7 +125,7 @@ class ConfirmationsRepository:
         if not postings:
             return []
 
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             now = self._now()
 
@@ -222,7 +141,7 @@ class ConfirmationsRepository:
             return postings
 
     def get_postings_by_dispatch(self, dispatch_id: str) -> List[str]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT posting_number
@@ -233,7 +152,7 @@ class ConfirmationsRepository:
             return [row["posting_number"] for row in cur.fetchall()]
 
     def get_items_by_dispatch(self, dispatch_id: str) -> List[Dict]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT
@@ -255,7 +174,7 @@ class ConfirmationsRepository:
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
     def mark_dispatch_prepared(self, dispatch_id: str):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 UPDATE confirmations
@@ -270,7 +189,7 @@ class ConfirmationsRepository:
     # CRUD: Confirmation Items
     # ------------------------------
     def delete_items_by_confirmation(self, confirmation_id: int):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 DELETE FROM confirmation_items
@@ -281,7 +200,7 @@ class ConfirmationsRepository:
     def add_items_bulk(self, items: List[tuple]):
         if not items:
             return
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.executemany("""
                 INSERT INTO confirmation_items
@@ -303,7 +222,7 @@ class ConfirmationsRepository:
 
         placeholders = ",".join("?" for _ in posting_numbers)
 
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute(f"""
                 SELECT ci.*, c.posting_number, c.created_at, c.shipped_at
@@ -315,7 +234,7 @@ class ConfirmationsRepository:
             return [dict(row) for row in cur.fetchall()]
 
     def get_items_for_posting(self, posting_number: str) -> list[dict]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
             SELECT ci.*
@@ -326,7 +245,7 @@ class ConfirmationsRepository:
             return [dict(row) for row in cur.fetchall()]
 
     def get_list_postings_numbers_by_status(self, status: str) -> list[str]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
                     cur = conn.cursor()
                     cur.execute("""
                         SELECT posting_number
@@ -337,7 +256,7 @@ class ConfirmationsRepository:
                     return [row["posting_number"] for row in rows]
 
     def get_items_for_error_mailer(self, status: str) -> list[dict]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT ci.*, c.id AS confirmation_id, c.posting_number, c.error_message, c.division_id
@@ -349,7 +268,7 @@ class ConfirmationsRepository:
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
     def get_all_items(self):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
             SELECT *
@@ -364,7 +283,7 @@ class ConfirmationsRepository:
         """
         DEPRECATED: использовать lock_postings_for_dispatch
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT posting_number
@@ -377,7 +296,7 @@ class ConfirmationsRepository:
         """
         DEPRECATED: использовать get_items_by_dispatch
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT
@@ -401,7 +320,7 @@ class ConfirmationsRepository:
             confirmation_status: str,
             item_status: str,
     ) -> list[dict]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT
@@ -418,7 +337,7 @@ class ConfirmationsRepository:
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
     def get_all(self) -> list[dict]:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 SELECT * FROM confirmations
@@ -427,7 +346,7 @@ class ConfirmationsRepository:
             return [self._row_to_dict(r) for r in cur.fetchall()]
 
     def update_stickers_status(self, postings: List[str], status: str, time):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             for posting_number in postings:
                 cur.execute("""

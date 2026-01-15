@@ -25,7 +25,7 @@ os.makedirs(ARCHIVE_DIR_WAREHOUSE, exist_ok=True)
 
 # коды подразделения для разделения на потоки обработки
 OZON_DIVISION = {19520, "19520"}
-OTHER_DIVISION = {16177, "16177"}
+OTHER_DIVISION = {16176, "16176"}
 YANDEX_DIVISION = {16178, "16178"}
 
 # разрешенные к обработке коды подразделений, для FilePolicy при чтении файлов

@@ -98,7 +98,7 @@
         "require_blr_traceable_attrs": true,
         "requirements": {
           "products_requiring_change_country": [],
-          "products_requiring_gtd": ["dsfafaf"],
+          "products_requiring_gtd": [],
           "products_requiring_country": [],
           "products_requiring_jwn": [],
           "products_requiring_imei": []

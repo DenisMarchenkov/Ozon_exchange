@@ -1,4 +1,7 @@
 import os
+
+from Common.db.database import Database
+from Common.db.init_db import init_confirmations_schema, init_dispatch_schema
 from Common.file_policy import FilePolicy
 from Common.logger import get_logger
 from Common.settings import DB_PATH
@@ -28,6 +31,10 @@ logger = get_logger(__name__)
 def main():
     logger.info("=== Запуск проверки подтверждений ===")
 
+    db = Database(DB_PATH)
+    init_confirmations_schema(db)
+    init_dispatch_schema(db)
+
     # ============================================================
     # 1. ФИЛЬТРАЦИЯ И ЧТЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
@@ -47,7 +54,7 @@ def main():
     # ============================================================
     # 2. ЗАПИСЬ В БД
     # ============================================================
-    confirmations_repo = ConfirmationsRepository(DB_PATH)
+    confirmations_repo = ConfirmationsRepository(db)
     recorder = ConfirmationsRecorder(confirmations_repo)
     recorder.record_from_dataframe(df)
 
@@ -57,7 +64,7 @@ def main():
     file_manager = ArchiveFileManager(
         inbox_dir=CONFIRMATIONS_DIR,
         archive_dir=ARCHIVE_DIR_CONFIRMATIONS,
-        dry_run=False, # True для тестов - не переносим файлы в архив, только логируем
+        dry_run=True, # True для тестов - не переносим файлы в архив, только логируем
         file_policy=policy,
     )
     file_manager.archive_all()
@@ -93,19 +100,19 @@ def main():
     # ============================================================
     # 6. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
-    dispatch_repo = DispatchRepository(DB_PATH)
+    dispatch_repo = DispatchRepository(db)
 
     if ozon_confirmations:
         logger.info(f"запуск сценария для {len(ozon_confirmations)} заказов ОЗОН")
-        run_ozon_flow(ozon_confirmations, confirmations_repo ,dispatch_repo)
+        run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo)
 
     if other_confirmations:
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
-        run_other_flow(other_confirmations, confirmations_repo ,dispatch_repo)
+        run_other_flow(other_confirmations, confirmations_repo, dispatch_repo)
 
     if yandex_confirmations:
         logger.info(f"запуск сценария для {len(yandex_confirmations)} заказов ЯНДЕКС")
-        run_yandex_flow(yandex_confirmations, confirmations_repo ,dispatch_repo)
+        run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo)
 
     # ============================================================
     # 7. ОТПРАВКА НА СКЛАД ОБРАБОТАННЫХ ДАННЫХ

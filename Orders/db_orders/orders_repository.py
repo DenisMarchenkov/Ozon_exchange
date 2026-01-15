@@ -1,118 +1,10 @@
 import sqlite3
 from typing import Optional
 
-from Common.db import get_connection
-from Common.settings import DB_PATH
-
-
 class OrdersRepository:
 
-    def __init__(self, db_path=DB_PATH):
-        self.db_path = db_path
-        self._init_db()
-
-
-    # ------------------------------
-    # Подключение к БД
-    # ------------------------------
-    def _get_conn(self):
-        conn = sqlite3.connect(self.db_path, timeout=30)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    def _init_db(self):
-        with self._get_conn() as conn:
-            cur = conn.cursor()
-
-            cur.execute("PRAGMA foreign_keys = ON;")
-            cur.execute("PRAGMA journal_mode = WAL;")
-            cur.execute("PRAGMA synchronous = NORMAL;")
-
-            # ------------------------------
-            # Таблица заказов
-            # ------------------------------
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    posting_number TEXT UNIQUE NOT NULL,
-                    status TEXT NOT NULL,
-
-                    -- флаг наличия зависимостей
-                    has_requirements INTEGER DEFAULT 0,
-
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # ------------------------------
-            # Таблица позиций в заказе
-            # ------------------------------
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS order_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                    order_id INTEGER NOT NULL,
-                    product_id INTEGER NOT NULL,
-                    offer_id TEXT NOT NULL,
-                    quantity INTEGER NOT NULL CHECK(quantity > 0),
-
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-                    FOREIGN KEY (order_id)
-                        REFERENCES orders(id)
-                        ON DELETE CASCADE
-                )
-            """)
-
-
-            # ------------------------------
-            # Таблица зависимостей заказов
-            # ------------------------------
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS order_requirements (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    order_id INTEGER NOT NULL,
-
-                    -- тип зависимости (marks, documents, extras, ...)
-                    requirement_type TEXT NOT NULL,
-
-                    -- значение зависимости (fragile, box, invoice, ...)
-                    requirement_value TEXT NOT NULL,
-
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-                    FOREIGN KEY (order_id)
-                        REFERENCES orders(id)
-                        ON DELETE CASCADE
-                )
-            """)
-
-            # ------------------------------
-            # Индексы
-            # ------------------------------
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_orders_posting_number
-                ON orders(posting_number)
-            """)
-
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_order_requirements_order_id
-                ON order_requirements(order_id)
-            """)
-
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_order_requirements_type_value
-                ON order_requirements(requirement_type, requirement_value)
-            """)
-
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_order_items_order_id
-                ON order_items(order_id)
-            """)
-
-            conn.commit()
+    def __init__(self, db):
+        self.db = db
 
 
     # ---------- CREATE ----------
@@ -127,7 +19,7 @@ class OrdersRepository:
         Создаёт заказ.
         Повторный вызов безопасен (INSERT OR IGNORE).
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT OR IGNORE INTO orders (
@@ -150,7 +42,7 @@ class OrdersRepository:
             has_requirements: bool,
             items: list[dict]
     ) -> int:
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("PRAGMA foreign_keys = ON;")
 
@@ -182,32 +74,13 @@ class OrdersRepository:
             conn.commit()
             return order_id
 
-    def create_requirements(self, order_id: int, requirement_type: str, requirement_value: str) -> None:
-        """
-        Создает запись в таблице зависимостей
-        """
-        with self._get_conn() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO order_requirements (
-                    order_id,
-                    requirement_type,
-                    requirement_value
-                )
-                VALUES (?, ?, ?)
-                """,
-                (order_id, requirement_type, requirement_value)
-            )
-            conn.commit()
 
     # ---------- READ ----------
-
     def get_status(self, posting_number: str) -> Optional[str]:
         """
         Возвращает статус заказа по posting_number.
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT status
@@ -221,7 +94,7 @@ class OrdersRepository:
         """
         Возвращает заказ целиком.
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT *
@@ -235,7 +108,7 @@ class OrdersRepository:
         """
         Возвращает id заказа.
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT id
@@ -246,7 +119,7 @@ class OrdersRepository:
             return row["id"] if row else None
 
     def get_all_orders(self):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT *
@@ -255,7 +128,7 @@ class OrdersRepository:
             return [self._row_to_dict(r) for r in cursor.fetchall()]
 
     def get_all_requirements(self):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT *
@@ -264,7 +137,7 @@ class OrdersRepository:
             return [self._row_to_dict(r) for r in cursor.fetchall()]
 
     def get_all_items(self):
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT *
@@ -278,7 +151,7 @@ class OrdersRepository:
         """
         Обновляет статус заказа.
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE orders
@@ -293,7 +166,7 @@ class OrdersRepository:
         """
         Обновляет флаг наличия зависимостей.
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE orders
@@ -310,7 +183,7 @@ class OrdersRepository:
         """
         Удаляет заказ.
         """
-        with self._get_conn() as conn:
+        with self.db.connect() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 DELETE FROM orders

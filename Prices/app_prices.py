@@ -1,3 +1,5 @@
+from Common.db.database import Database
+from Common.db.init_db import init_prices_schema
 from Prices.db_prices.prices_repository import SupplierPriceHashRepository
 from Prices.services.pricing_engine import MarkupReader, ProductReader, PricingEngine
 from Prices.api.ozon_api import update_prices
@@ -12,7 +14,11 @@ logger = get_logger("Prices")
 
 def main():
     logger.info("=== Запуск обмена ценами ===")
-    repo_prices = SupplierPriceHashRepository(DB_PATH)
+
+    db = Database(DB_PATH)
+    init_prices_schema(db)
+
+    repo_prices = SupplierPriceHashRepository(db)
 
 
     # ============================================================

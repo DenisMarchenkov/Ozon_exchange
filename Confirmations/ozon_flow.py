@@ -1,3 +1,4 @@
+from Common.db.database import Database
 from Common.time import now_iso
 from Common.logger import get_logger
 from Common.settings import DB_PATH
@@ -54,8 +55,10 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
         for ship in list(ship_not_available.keys()):
             confirmations_repo.update_status(ship, "ship_not_available")
 
+        db = Database(DB_PATH)
+
         # обновить данные ГТД в озон
-        gtd_repo = GtdRepository(db_path=DB_PATH)
+        gtd_repo = GtdRepository(db)
         gtd_service = OzonGtdPreparationService(gtd_repo=gtd_repo)
         payloads = gtd_service.prepare(ship_not_available)
         ozon_client = OzonGtdUpdater()
@@ -81,7 +84,6 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
     # ============================================================
     # 5. Инициализация файлового сервиса Dispatch
     # ============================================================
-
     files_service = DispatchFilesService(
         dispatch_repo=dispatch_repo,
         confirmations_repo=confirmations_repo,

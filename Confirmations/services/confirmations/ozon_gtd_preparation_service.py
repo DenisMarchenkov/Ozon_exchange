@@ -1,21 +1,32 @@
+from typing import Set, Tuple, Dict
+
+from Common.settings import CLIENT_ID, API_TOKEN
+from Common.http_utils import send_request_with_retries
+
 from Common.logger import get_logger
 logger = get_logger(__name__)
 
 
 class GtdRepository:
-    def __init__(self, db_path: str):
-        self.db_path = db_path
+    """
+    Репозиторий для работы с GTD товаров.
+    Использует объект Database вместо прямого подключения к SQLite.
+    """
+    def __init__(self, db):
+        self.db = db
 
     def load_bulk(
         self,
-        keys: set[tuple[str, int]]
-    ) -> dict[tuple[str, int], str | None]:
-        import sqlite3
-
+        keys: Set[Tuple[str, int]]
+    ) -> Dict[Tuple[str, int], str | None]:
+        """
+        Загружает GTD для списка (posting_number, product_id)
+        """
         if not keys:
             return {}
 
-        placeholders = ",".join("(?, ?)" for _ in keys)
+        # SQLite не поддерживает (a,b) IN ((?,?), ...), делаем через OR
+        placeholders = " OR ".join("(o.posting_number=? AND oi.product_id=?)" for _ in keys)
         params = [v for k in keys for v in k]
 
         query = f"""
@@ -25,17 +36,19 @@ class GtdRepository:
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
             LEFT JOIN confirmation_items ci ON oi.offer_id = ci.sku_art
-            WHERE (o.posting_number, oi.product_id) IN ({placeholders})
+            WHERE {placeholders}
         """
 
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cur = conn.execute(query, params)
-
-            return {
+        with self.db.connect() as conn:
+            #conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(query, params)
+            result = {
                 (r["posting_number"], r["product_id"]): r["gtd"]
                 for r in cur.fetchall()
             }
+
+        return result
 
 
 class OzonGtdPreparationService:
@@ -131,10 +144,6 @@ class OzonGtdPreparationService:
             for p in postings.values()
         ]
 
-
-
-from Common.settings import CLIENT_ID, API_TOKEN
-from Common.http_utils import send_request_with_retries
 
 
 class OzonGtdUpdater:
