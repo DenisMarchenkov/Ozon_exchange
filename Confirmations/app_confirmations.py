@@ -31,9 +31,16 @@ logger = get_logger(__name__)
 def main():
     logger.info("=== Запуск проверки подтверждений ===")
 
+    # ============================================================
+    # 0. DB + REPOSITORIES
+    # ============================================================
     db = Database(DB_PATH)
     init_confirmations_schema(db)
     init_dispatch_schema(db)
+
+    confirmations_repo = ConfirmationsRepository(db)
+    dispatch_repo = DispatchRepository(db)
+
 
     # ============================================================
     # 1. ФИЛЬТРАЦИЯ И ЧТЕНИЕ ПОДТВЕРЖДЕНИЙ
@@ -51,12 +58,13 @@ def main():
     )
     df = reader.read()
 
+
     # ============================================================
     # 2. ЗАПИСЬ В БД
     # ============================================================
-    confirmations_repo = ConfirmationsRepository(db)
     recorder = ConfirmationsRecorder(confirmations_repo)
     recorder.record_from_dataframe(df)
+
 
     # ============================================================
     # 3. АРХИВАЦИЯ ФАЙЛОВ
@@ -88,9 +96,9 @@ def main():
     # ============================================================
     confirmed = confirmations_repo.get_by_status("confirmed")
     error = confirmations_repo.get_by_status("error") # подхватываем те которые раньше при обновлении завершились ошибкой
+    ship_not_available = confirmations_repo.get_by_status("ship_not_available") # в которых нужно было уточнить гтд, маркировку...
 
-    #all_confirmations = confirmations_repo.get_by_status("confirmed")
-    all_confirmations = confirmed + error
+    all_confirmations = confirmed + error + ship_not_available
 
     ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
     other_confirmations = [c for c in all_confirmations if c["division_id"] in OTHER_DIVISION]
@@ -100,11 +108,9 @@ def main():
     # ============================================================
     # 6. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
-    dispatch_repo = DispatchRepository(db)
-
     if ozon_confirmations:
         logger.info(f"запуск сценария для {len(ozon_confirmations)} заказов ОЗОН")
-        run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo)
+        run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db)
 
     if other_confirmations:
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
@@ -113,6 +119,7 @@ def main():
     if yandex_confirmations:
         logger.info(f"запуск сценария для {len(yandex_confirmations)} заказов ЯНДЕКС")
         run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo)
+
 
     # ============================================================
     # 7. ОТПРАВКА НА СКЛАД ОБРАБОТАННЫХ ДАННЫХ

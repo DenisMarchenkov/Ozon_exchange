@@ -1,7 +1,7 @@
-from Common.db.database import Database
 from Common.time import now_iso
 from Common.logger import get_logger
-from Common.settings import DB_PATH
+from Confirmations.api.exemplar_status.posting_filters import filter_postings_with_gtd_absent, \
+    filter_postings_requiring_mandatory_marking
 from Confirmations.services.dispatch.DispatchRetryService import DispatchRetryService
 from Confirmations.services.dispatch.DispatchPrepareService import DispatchPrepareService
 from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
@@ -9,20 +9,21 @@ from Confirmations.services.labels.ozon_labels_generator import LabelsGenerator
 from Confirmations.services.mailers.mailer_gtd_update import GTDAutoUpdateMailer
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.confirmations.confirmations_status_updater import ConfirmationsStatusUpdater
-from Confirmations.services.confirmations.exemplar_ship_availability import ExemplarShipAvailabilityService
-from Confirmations.services.confirmations.ozon_gtd_preparation_service import (OzonGtdPreparationService, GtdRepository,
-                                                                               OzonGtdUpdater)
+from Confirmations.api.exemplar_status.exemplar_ship_availability import ExemplarShipAvailabilityService
+from Confirmations.api.exemplar_status.ozon_gtd_preparation_service import (OzonGtdPreparationService, GtdRepository,
+                                                                            OzonGtdUpdater)
 
 logger = get_logger(__name__)
 
 
-def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
+def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
     """
     Запуск OZON-сценария.
 
     :param ozon_confirmations: список словарей с подтверждениями только для OZON
     :param confirmations_repo: репозиторий подтверждений
     :param dispatch_repo: репозиторий dispatch
+    :param db экземпляр Database, используемый для доступа к SQLite-базе
     """
     if not ozon_confirmations:
         logger.info("Нет подтверждений для OZON")
@@ -55,16 +56,22 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
         for ship in list(ship_not_available.keys()):
             confirmations_repo.update_status(ship, "ship_not_available")
 
-        db = Database(DB_PATH)
+        # оставляем только отправления, для которых отсутствуют данные ГТД
+        is_gtd_absent_postings = filter_postings_with_gtd_absent(ship_not_available)
+        # оставляем только отправления, для которых отсутствуют коды маркировке "Честный знак"
+        is_gtd_absent_marking = filter_postings_requiring_mandatory_marking(ship_not_available)
 
         # обновить данные ГТД в озон
         gtd_repo = GtdRepository(db)
         gtd_service = OzonGtdPreparationService(gtd_repo=gtd_repo)
-        payloads = gtd_service.prepare(ship_not_available)
-        ozon_client = OzonGtdUpdater()
+        payloads = gtd_service.prepare(is_gtd_absent_postings)
 
+        ozon_client = OzonGtdUpdater()
         for payload in payloads:
             ozon_client.update_gtd(payload)
+
+        # обновить коды маркировки в озон
+        # использовать is_gtd_absent_marking
 
 
     # ============================================================
@@ -74,6 +81,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo):
     if update_gtd_data:
         mailer = GTDAutoUpdateMailer(update_gtd_data)
         mailer.send()
+
 
     # ============================================================
     # 4. Инициализация генератора ярлыков

@@ -1,6 +1,5 @@
-from typing import Dict, List, Any
 from Common.logger import get_logger
-from Confirmations.api.ozon_exemplar_status_api import OzonExemplarStatusAPI
+from Confirmations.api.exemplar_status.ozon_exemplar_status_api import OzonExemplarStatusAPI
 
 logger = get_logger(__name__)
 

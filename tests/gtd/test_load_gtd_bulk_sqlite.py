@@ -1,7 +1,7 @@
 import sqlite3
 import tempfile
 
-from Confirmations.services.confirmations.ozon_gtd_preparation_service import (
+from Confirmations.api.exemplar_status.ozon_gtd_preparation_service import (
     OzonGtdPreparationService
 )
 
