@@ -7,6 +7,7 @@ from Confirmations.services.dispatch.DispatchPrepareService import DispatchPrepa
 from Confirmations.services.dispatch.DispatchFilesService import DispatchFilesService
 from Confirmations.services.labels.ozon_labels_generator import LabelsGenerator
 from Confirmations.services.mailers.mailer_gtd_update import GTDAutoUpdateMailer
+from Confirmations.services.mailers.mailer_marking_update import MarkingAutoUpdateMailer
 from Confirmations.services.warehouse_file_builder import WarehouseFileBuilder
 from Confirmations.services.confirmations.confirmations_status_updater import ConfirmationsStatusUpdater
 from Confirmations.api.exemplar_status.exemplar_ship_availability import ExemplarShipAvailabilityService
@@ -57,29 +58,38 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
             confirmations_repo.update_status(ship, "ship_not_available")
 
         # оставляем только отправления, для которых отсутствуют данные ГТД
-        is_gtd_absent_postings = filter_postings_with_gtd_absent(ship_not_available)
+        is_gtd_absent = filter_postings_with_gtd_absent(ship_not_available)
+        for ship in list(is_gtd_absent.keys()):
+            confirmations_repo.update_status(ship, "is_gtd_absent")
+
         # оставляем только отправления, для которых отсутствуют коды маркировке "Честный знак"
-        is_gtd_absent_marking = filter_postings_requiring_mandatory_marking(ship_not_available)
+        is_marking_absent = filter_postings_requiring_mandatory_marking(ship_not_available)
+        for ship in list(is_marking_absent.keys()):
+            confirmations_repo.update_status(ship, "is_marking_absent")
 
         # обновить данные ГТД в озон
         gtd_repo = GtdRepository(db)
         gtd_service = OzonGtdPreparationService(gtd_repo=gtd_repo)
-        payloads = gtd_service.prepare(is_gtd_absent_postings)
+        payloads = gtd_service.prepare(is_gtd_absent)
 
         ozon_client = OzonGtdUpdater()
         for payload in payloads:
             ozon_client.update_gtd(payload)
 
-        # обновить коды маркировки в озон
-        # использовать is_gtd_absent_marking
+        # todo обновить коды маркировки в озон используя is_marking_absent. Написать OzonGtdPreparationService
 
 
     # ============================================================
-    # 3. Письмо о попытке обновить данные экземпляров отправления (ГТД)
+    # 3. Письмо о попытке обновить данные экземпляров отправления (ГТД и маркировка)
     # ============================================================
-    update_gtd_data = confirmations_repo.get_by_status("ship_not_available")
+    update_gtd_data = confirmations_repo.get_by_status("is_gtd_absent")
     if update_gtd_data:
         mailer = GTDAutoUpdateMailer(update_gtd_data)
+        mailer.send()
+
+    update_marking_data = confirmations_repo.get_by_status("is_marking_absent")
+    if update_marking_data:
+        mailer = MarkingAutoUpdateMailer(update_marking_data)
         mailer.send()
 
 

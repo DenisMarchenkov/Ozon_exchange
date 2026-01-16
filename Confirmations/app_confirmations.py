@@ -72,7 +72,7 @@ def main():
     file_manager = ArchiveFileManager(
         inbox_dir=CONFIRMATIONS_DIR,
         archive_dir=ARCHIVE_DIR_CONFIRMATIONS,
-        dry_run=True, # True для тестов - не переносим файлы в архив, только логируем
+        dry_run=False, # True для тестов - не переносим файлы в архив, только логируем
         file_policy=policy,
     )
     file_manager.archive_all()
