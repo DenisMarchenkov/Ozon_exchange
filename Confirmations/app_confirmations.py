@@ -94,11 +94,16 @@ def main():
     # ============================================================
     # 5. РАЗДЕЛЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
-    confirmed = confirmations_repo.get_by_status("confirmed")
-    error = confirmations_repo.get_by_status("error") # подхватываем те которые раньше при обновлении завершились ошибкой
-    ship_not_available = confirmations_repo.get_by_status("ship_not_available") # в которых нужно было уточнить гтд, маркировку...
+    # confirmed = confirmations_repo.get_by_status("confirmed")
+    # error = confirmations_repo.get_by_status("error")
+    # ship_not_available = confirmations_repo.get_by_status("ship_not_available")
+    # all_confirmations = confirmed + error + ship_not_available
 
-    all_confirmations = confirmed + error + ship_not_available
+    # confirmed - подтвержденные заказы
+    # error - подхватываем которые ранее при обновлении завершились ошибкой
+    # ship_not_available - в которых нужно было уточнить гтд, маркировку...
+    statuses = ['confirmed', 'error', 'ship_not_available']
+    all_confirmations = confirmations_repo.get_by_statuses(statuses)
 
     ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
     other_confirmations = [c for c in all_confirmations if c["division_id"] in OTHER_DIVISION]

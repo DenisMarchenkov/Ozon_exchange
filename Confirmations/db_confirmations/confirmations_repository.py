@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Dict
+from typing import List, Dict, Iterable
 from datetime import datetime, timezone
 
 
@@ -42,15 +42,16 @@ class ConfirmationsRepository:
         ordered_at: str | None,
         shipped_at: str | None,
         created_at: str,
-        updated_at: str
+        updated_at: str,
+        marketplace_status: str
     ) -> int:
         with self.db.connect() as conn:
             cur = conn.cursor()
             cur.execute("""
                 INSERT INTO confirmations
-                (posting_number, division_id, status, source_file, ordered_at, shipped_at, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (posting_number, division_id, status, source_file, ordered_at, shipped_at, created_at, updated_at))
+                (posting_number, division_id, status, source_file, ordered_at, shipped_at, created_at, updated_at, marketplace_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (posting_number, division_id, status, source_file, ordered_at, shipped_at, created_at, updated_at, marketplace_status))
             conn.commit()
             return cur.lastrowid
 
@@ -74,6 +75,25 @@ class ConfirmationsRepository:
                 """,
                 (status,)
             )
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_by_statuses(self, statuses: Iterable[str]) -> List[Dict]:
+        statuses = list(statuses)
+        if not statuses:
+            return []
+
+        placeholders = ",".join("?" for _ in statuses)
+
+        query = f"""
+            SELECT *
+            FROM confirmations
+            WHERE status IN ({placeholders})
+            AND marketplace_status NOT IN ('cancelled', 'delivered')
+        """
+
+        with self.db.connect() as conn:
+            cur = conn.cursor()
+            cur.execute(query, statuses)
             return [dict(row) for row in cur.fetchall()]
 
 

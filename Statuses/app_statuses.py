@@ -1,10 +1,8 @@
 import asyncio
-from pprint import pprint
 
 from Common.logger import get_logger
 from Common.db.database import Database
 from Common.settings import DB_PATH, API_TOKEN, CLIENT_ID
-from Statuses.db_statuses.statuses_repository import get_active_postings
 from Statuses.services.status_checker import StatusChecker
 from Statuses.settings_app.settings_statuses import MAX_CONCURRENT_REQUESTS
 

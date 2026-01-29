@@ -1,8 +1,9 @@
-import logging
+import asyncio
+import aiohttp
 from Common.logger import get_logger
-from Statuses.settings_app.settings_statuses import OZON_TO_INTERNAL_STATUS
-from Statuses.db_statuses.statuses_repository import get_active_postings, update_internal_status, set_check_error
+from Statuses.db_statuses.statuses_repository import get_active_postings, update_ozon_info, set_check_error
 from Statuses.api.ozon_client import OzonClient
+from Statuses.services.mailers.status_mailer import StatusMailer
 
 logger = get_logger(__name__)
 
@@ -14,6 +15,7 @@ class StatusChecker:
             headers=ozon_headers,
             max_concurrent_requests=max_concurrent_requests
         )
+        self.status_changes = []
 
     async def run(self):
         # 1️⃣ Берём все активные постинги
@@ -22,41 +24,54 @@ class StatusChecker:
             logger.info("Нет активных подтверждений для проверки.")
             return
 
-        posting_numbers = [p["posting_number"] for p in active_postings]
+        async with aiohttp.ClientSession() as session:
+            # 2️⃣ Создаём задачи для каждого постинга
+            tasks = [
+                self._process_single_posting(session, p)
+                for p in active_postings
+            ]
+            
+            # 3️⃣ Запускаем всё параллельно
+            await asyncio.gather(*tasks)
 
-        # 2️⃣ Получаем статусы с OZON
-        results = await self.ozon_client.get_many(posting_numbers)
+        # 4️⃣ Отправляем уведомление, если были изменения
+        if self.status_changes:
+            logger.info("Отправка уведомления об изменении статусов...")
+            mailer = StatusMailer(self.status_changes)
+            await asyncio.to_thread(mailer.send)
 
-        # 3️⃣ Обрабатываем каждый результат
-        for res in results:
-            posting_number = res["posting_number"]
-            status = res.get("status")
-            cancel_reason = res.get("cancel_reason")
-            error = res.get("error")
+    async def _process_single_posting(self, session: aiohttp.ClientSession, posting: dict):
+        posting_number = posting["posting_number"]
+        conf_id = posting["id"]
+        old_marketplace_status = posting.get("marketplace_status")
 
-            # Находим id в нашей БД
-            confirmation = next(
-                (p for p in active_postings if p["posting_number"] == posting_number), None
-            )
-            if not confirmation:
-                logger.warning("[%s] Не найдено в БД", posting_number)
-                continue
+        # Получаем данные от Ozon (внутри семафор OzonClient)
+        res = await self.ozon_client.get_posting_status(session, posting_number)
+        
+        status = res.get("status")
+        cancel_reason = res.get("cancel_reason")
+        error = res.get("error")
 
-            conf_id = confirmation["id"]
+        if error:
+            # Используем to_thread для синхронных вызовов БД, чтобы не блокировать цикл
+            await asyncio.to_thread(set_check_error, self.db, conf_id, error)
+            logger.warning("[%s] Ошибка запроса: %s", posting_number, error)
+            return
 
-            # Ошибка запроса
-            if error:
-                set_check_error(self.db, conf_id, error)
-                logger.warning("[%s] Ошибка запроса: %s", posting_number, error)
-                continue
+        # Обновляем инфо в БД сразу по готовности ответа
+        await asyncio.to_thread(
+            update_ozon_info,
+            self.db,
+            conf_id,
+            marketplace_status=status,
+            marketplace_cancel_reason=cancel_reason
+        )
 
-            # Маппим OZON → внутренний статус
-            new_status = OZON_TO_INTERNAL_STATUS.get(status)
-            if not new_status:
-                logger.warning("[%s] Неизвестный статус OZON: %s", posting_number, status)
-                set_check_error(self.db, conf_id, f"Неизвестный OZON статус: {status}")
-                continue
+        if status != old_marketplace_status:
+            self.status_changes.append({
+                "posting_number": posting_number,
+                "old_status": old_marketplace_status,
+                "new_status": status
+            })
 
-            # Обновляем статус
-            update_internal_status(self.db, conf_id, new_status)
-            logger.info("[%s] Обновлён статус: %s", posting_number, new_status)
+        logger.info("[%s] Синхронизирован статус Ozon: %s", posting_number, status)

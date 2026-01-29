@@ -128,7 +128,8 @@ class ConfirmationsRecorder:
                     ordered_at=ordered_at,
                     shipped_at=shipped_at,
                     created_at=now_iso(),
-                    updated_at=now_iso()
+                    updated_at=now_iso(),
+                    marketplace_status='NOT_VERIFIED'
                 )
                 logger.info(f"{posting_number} создано новое подтверждение")
 
