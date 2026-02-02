@@ -4,14 +4,16 @@ from Common.time import now_iso
 from Statuses.settings_app.settings_statuses import OZON_FINAL_STATUSES
 
 
-def get_active_postings(db) -> List[dict]:
+def get_active_postings(db, division_id: str) -> List[dict]:
     """
     Постинги, статусы которых нужно синхронизировать с OZON.
     Проверяем только те, у которых статус Ozon еще не финальный.
     """
     final_ozon = list(OZON_FINAL_STATUSES)
     if not final_ozon:
-        final_ozon = [""]
+        final_ozon = [""]  # чтобы NOT IN () не сломался
+
+    placeholders = ",".join("?" for _ in final_ozon)
 
     query = f"""
         SELECT
@@ -20,13 +22,18 @@ def get_active_postings(db) -> List[dict]:
             status,
             marketplace_status
         FROM confirmations
-        WHERE marketplace_status IS NULL 
-           OR marketplace_status NOT IN ({','.join('?' for _ in final_ozon)})
+        WHERE (
+                marketplace_status IS NULL
+                OR marketplace_status NOT IN ({placeholders})
+              )
+          AND division_id = ?
     """
+
+    params = [*final_ozon, division_id]
 
     with db.connect() as conn:
         cur = conn.cursor()
-        cur.execute(query, final_ozon)
+        cur.execute(query, params)
         rows = cur.fetchall()
 
     return [dict(row) for row in rows]

@@ -4,6 +4,7 @@ from Common.logger import get_logger
 from Statuses.db_statuses.statuses_repository import get_active_postings, update_ozon_info, set_check_error
 from Statuses.api.ozon_client import OzonClient
 from Statuses.services.mailers.status_mailer import StatusMailer
+from Statuses.settings_app.settings_statuses import OZON_DIVISION
 
 logger = get_logger(__name__)
 
@@ -19,7 +20,7 @@ class StatusChecker:
 
     async def run(self):
         # 1️⃣ Берём все активные постинги
-        active_postings = get_active_postings(self.db)
+        active_postings = get_active_postings(self.db, division_id=OZON_DIVISION)
         if not active_postings:
             logger.info("Нет активных подтверждений для проверки.")
             return
