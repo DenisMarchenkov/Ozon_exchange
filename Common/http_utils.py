@@ -42,7 +42,8 @@ def send_request_with_retries(
     method: str,
     headers: Dict[str, str],
     body: Optional[Dict[str, Any]] = None,
-    max_attempts: int = 3
+    max_attempts: int = 3,
+    accepted_status_codes: Optional[list[int]] = None
 ) -> Optional[Dict[str, Any]]:
 
     attempt = 0
@@ -94,8 +95,11 @@ def send_request_with_retries(
                     method=method, url=url, headers=headers, json=body
                 )
 
-            if response.status_code == 200:
-                logger.info(f"Successfully sent request to {url}")
+            if accepted_status_codes is None:
+                accepted_status_codes = [200]
+
+            if response.status_code in accepted_status_codes:
+                logger.info(f"Successfully sent request to {url} (status {response.status_code})")
                 #logger.info(f"API RESPONSE: {response.json()}")
                 return response.json()
             elif 500 <= response.status_code < 600:

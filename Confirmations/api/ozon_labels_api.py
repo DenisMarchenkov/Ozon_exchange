@@ -8,6 +8,10 @@ from Common.settings import CLIENT_ID, API_TOKEN
 logger = get_logger(__name__)
 
 
+class OzonNotReadyError(Exception):
+    pass
+
+
 class OzonLabelsAPI:
     """
     Работа с API Ozon для генерации и получения наклеек (FBS).
@@ -37,14 +41,25 @@ class OzonLabelsAPI:
                 method="POST",
                 headers=self.headers,
                 body=data,
+                accepted_status_codes=[200, 400]
             )
             if not resp:
                 logger.error("Ozon не вернул response при создании наклеек")
                 return None
 
+            # Проверка на ошибку "ещё не готово" when 400
+            if resp.get("code") == 3 and result_msg := resp.get("message"):
+                if result_msg == "NO_POSTINGS_FOR_BATCH_DOWNLOAD":
+                    raise OzonNotReadyError("Ozon not ready: NO_POSTINGS_FOR_BATCH_DOWNLOAD")
 
             tasks = resp.get("result", {}).get("tasks", [])
             if not tasks:
+                # Если вернулся 200, но тасков нет — это тоже странно, но логируем
+                # Если была ошибка 400, "result" может не быть.
+                if "error" in resp or "code" in resp:
+                     logger.error(f"Ozon вернул ошибку при создании наклеек: {resp}")
+                     return None
+
                 logger.error("Ozon не вернул tasks при создании наклеек")
                 return None
 

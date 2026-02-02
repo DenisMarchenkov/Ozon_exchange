@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 from Common.logger import get_logger
-from Confirmations.api.ozon_labels_api import OzonLabelsAPI
+from Confirmations.api.ozon_labels_api import OzonLabelsAPI, OzonNotReadyError
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.services.labels.labels_file_manager import LabelsFileManager
 from Common.time import now_iso
@@ -29,10 +29,25 @@ class LabelsGenerator:
         logger.info(f"Генерация наклеек для {len(postings)} заказов")
         self.repo.update_stickers_status(postings, "creating", now_iso())
 
-        task_id = self.api.create_task(postings)
+        # --- RETRY LOGIC FOR CREATION ---
+        task_id = None
+        # Используем те же интервалы, или свои. Возьмем CHECK_INTERVALS для простоты
+        for attempt, interval in enumerate(self.CHECK_INTERVALS, start=1):
+            try:
+                task_id = self.api.create_task(postings)
+                if task_id:
+                    break
+            except OzonNotReadyError:
+                logger.warning(
+                    f"Ozon не готов принять задачу (NO_POSTINGS...), попытка {attempt}/{len(self.CHECK_INTERVALS)} через {interval}s"
+                )
+                time.sleep(interval)
+        
         if not task_id:
+            logger.error("Не удалось создать задачу на получение наклеек (все попытки исчерпаны).")
             self.repo.update_stickers_status(postings, "error", now_iso())
             return None
+        # --------------------------------
 
         self.repo.update_stickers_status(postings, "in_progress", now_iso())
         result = self._wait_task_with_retry(task_id)
