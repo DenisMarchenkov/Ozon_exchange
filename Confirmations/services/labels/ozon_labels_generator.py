@@ -8,9 +8,10 @@ from Common.time import now_iso
 
 logger = get_logger(__name__)
 
+
 class LabelsGenerator:
-    MAX_WAIT_TIME = 120
-    CHECK_INTERVAL = 5
+    MAX_RETRIES = 5
+    CHECK_INTERVALS = [10, 30, 60, 120, 300]  # сек
 
     def __init__(self):
         self.api = OzonLabelsAPI()
@@ -34,7 +35,7 @@ class LabelsGenerator:
             return None
 
         self.repo.update_stickers_status(postings, "in_progress", now_iso())
-        result = self._wait_task(task_id)
+        result = self._wait_task_with_retry(task_id)
 
         if result.get("status") == "completed" and result.get("file_url"):
             path = self.files.save_labels(result["file_url"])
@@ -43,18 +44,31 @@ class LabelsGenerator:
             return path
         else:
             self.repo.update_stickers_status(postings, "error", now_iso())
-            logger.error(f"При генерации наклеек озон вернул ошибку {result}")
+            logger.error(f"При генерации наклеек Ozon вернул ошибку {result}")
             return None
 
-    def _wait_task(self, task_id: str) -> dict:
-        start = time.time()
-        while time.time() - start < self.MAX_WAIT_TIME:
+    def _wait_task_with_retry(self, task_id: str) -> dict:
+        for attempt, interval in enumerate(self.CHECK_INTERVALS, start=1):
             info = self.api.get_task_status(task_id)
             status = info.get("status")
+
+            # Всё готово
             if status == "completed":
                 return info
+
+            # Ошибка, которую нельзя исправить
             if status == "error":
                 return {"status": "error", "error": "Ошибка на стороне Ozon"}
-            logger.info(f"Задача наклеек в процессе ({status}), ожидание...")
-            time.sleep(self.CHECK_INTERVAL)
-        return {"status": "error", "error": "Таймаут ожидания наклеек"}
+
+            # Временная ситуация — OZON ещё не готов
+            if info.get("error_code") == "NO_POSTINGS_FOR_BATCH_DOWNLOAD":
+                logger.warning(
+                    f"OZON ещё не готов, повторная попытка {attempt}/{len(self.CHECK_INTERVALS)} через {interval}s"
+                )
+            else:
+                logger.info(f"Задача наклеек в процессе ({status}), ожидание {interval}s...")
+
+            time.sleep(interval)
+
+        # Если всё retries пройдены
+        return {"status": "error", "error": "Таймаут ожидания наклеек или OZON не готов"}

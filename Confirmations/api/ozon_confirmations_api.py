@@ -95,7 +95,7 @@ class OzonConfirmationsAPI:
         for item in products_raw:
             try:
                 products.append({
-                    "sku": item["sku"],
+                    "product_id": item["sku"],
                     "quantity": item["quantity"],
                 })
             except KeyError as e:
