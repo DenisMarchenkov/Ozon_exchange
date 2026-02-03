@@ -48,9 +48,12 @@ class OzonLabelsAPI:
                 return None
 
             # Проверка на ошибку "ещё не готово" when 400
-            if resp.get("code") == 3 and result_msg := resp.get("message"):
+            result_msg = resp.get("message")
+            if resp.get("code") == 3 and result_msg:
                 if result_msg == "NO_POSTINGS_FOR_BATCH_DOWNLOAD":
-                    raise OzonNotReadyError("Ozon not ready: NO_POSTINGS_FOR_BATCH_DOWNLOAD")
+                    raise OzonNotReadyError(
+                        "Ozon not ready: NO_POSTINGS_FOR_BATCH_DOWNLOAD"
+                    )
 
             tasks = resp.get("result", {}).get("tasks", [])
             if not tasks:
