@@ -20,7 +20,7 @@ class LabelsGenerator:
 
     def download(self, dispatch_id) -> Path | None:
         postings = self.repo.get_postings_by_dispatch(dispatch_id)
-        postings = list(set(postings))
+        postings = list(dict.fromkeys(postings))
 
         if not postings:
             logger.info("Нет заказов для генерации наклеек")
