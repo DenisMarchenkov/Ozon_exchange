@@ -45,6 +45,7 @@ class StatusChecker:
         posting_number = posting["posting_number"]
         conf_id = posting["id"]
         old_marketplace_status = posting.get("marketplace_status")
+        internal_status = posting.get("status")
 
         # Получаем данные от Ozon (внутри семафор OzonClient)
         res = await self.ozon_client.get_posting_status(session, posting_number)
@@ -72,7 +73,8 @@ class StatusChecker:
             self.status_changes.append({
                 "posting_number": posting_number,
                 "old_status": old_marketplace_status,
-                "new_status": status
+                "new_status": status,
+                "internal_status": internal_status,
             })
 
         logger.info("[%s] Синхронизирован статус Ozon: %s", posting_number, status)
