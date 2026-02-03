@@ -99,11 +99,15 @@ class OzonLabelsAPI:
         result = response.get("result", {})
         status = result.get("status")
         file_url = result.get("file_url")
+        printed_count = result.get("printed_postings_count")
+        unprinted = result.get("unprinted_postings", [])
 
         if status == "completed" and file_url:
             return {
                 "status": "completed",
                 "file_url": file_url,
+                "printed_postings_count": printed_count,
+                "unprinted_postings": unprinted,
             }
 
         if status in {"pending", "in_progress", "completed"}:

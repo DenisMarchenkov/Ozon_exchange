@@ -99,14 +99,21 @@ class LabelsGenerator:
         for attempt, interval in enumerate(self.CHECK_INTERVALS, start=1):
             info = self.api.get_task_status(task_id)
             status = info.get("status")
-
-            # Всё готово
-            if status == "completed":
-                return info
+            unprinted = info.get("unprinted_postings", [])
 
             # Ошибка, которую нельзя исправить
             if status == "error":
                 return {"status": "error", "error": "Ошибка на стороне Ozon"}
+
+            # Всё готово, наклейки все сгенерированы
+            if status == "completed" and not unprinted:
+                return info
+
+            # Задача завершена, но есть пропавшие наклейки
+            if status == "completed" and unprinted:
+                logger.warning(f"Частично сгенерированы наклейки, пропавшие: {unprinted}")
+                info["status"] = "partial"
+                return info  # сразу возвращаем, download решит retry
 
             # Временная ситуация — OZON ещё не готов
             if info.get("error_code") == "NO_POSTINGS_FOR_BATCH_DOWNLOAD":
@@ -120,3 +127,4 @@ class LabelsGenerator:
 
         # Если всё retries пройдены
         return {"status": "error", "error": "Таймаут ожидания наклеек или OZON не готов"}
+
