@@ -57,7 +57,7 @@ def update_ozon_info(
                 marketplace_status_updated_at = :marketplace_status_updated_at,
                 error_message = :error_message,
                 updated_at = :now_iso
-            WHERE posting_number = :conf_id
+            WHERE id = :conf_id
         """, {
             "marketplace_status": marketplace_status,
             "marketplace_cancel_reason": marketplace_cancel_reason,
