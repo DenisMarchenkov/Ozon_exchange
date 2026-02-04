@@ -6,9 +6,11 @@ class DispatchRetryService:
     def __init__(
         self,
         dispatch_repo,
+        confirmations_repo,
         files_service,
     ):
         self.dispatch_repo = dispatch_repo
+        self.confirmations_repo = confirmations_repo
         self.files_service = files_service
 
     def retry_failed(self):
@@ -28,6 +30,7 @@ class DispatchRetryService:
                     )
 
                 self.dispatch_repo.update_status(d_id, "PREPARED")
+                self.confirmations_repo.mark_dispatch_prepared(d_id)
 
             except Exception:
                 logger.exception(f"Retry не удался для dispatch {d_id}")

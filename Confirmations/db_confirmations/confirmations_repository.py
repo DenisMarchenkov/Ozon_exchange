@@ -393,5 +393,5 @@ class ConfirmationsRepository:
                     UPDATE confirmations
                     SET stickers=?, updated_at=?
                     WHERE posting_number=?
-                """, (status, posting_number, time))
+                """, (status, time, posting_number))
             conn.commit()

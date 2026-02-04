@@ -52,6 +52,7 @@ class DispatchPrepareService:
                 )
 
             self.dispatch_repo.update_status(dispatch_id, "PREPARED")
+            self.confirmations_repo.mark_dispatch_prepared(dispatch_id)
             logger.info(f"Dispatch {dispatch_id} успешно подготовлен")
 
         except Exception:

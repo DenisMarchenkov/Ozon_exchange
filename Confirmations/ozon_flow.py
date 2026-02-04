@@ -112,6 +112,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
     # ============================================================
     retry_service = DispatchRetryService(
         dispatch_repo=dispatch_repo,
+        confirmations_repo=confirmations_repo,
         files_service=files_service,
     )
     retry_service.retry_failed()
