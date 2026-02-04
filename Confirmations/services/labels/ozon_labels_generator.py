@@ -141,14 +141,6 @@ class LabelsGenerator:
         is_partial = bool(failed_postings)
         return LabelsResult(last_path, successful_postings, failed_postings, is_partial)
 
-
-class LabelsResult:
-    def __init__(self, file_path, successful, failed, is_partial):
-        self.file_path = file_path
-        self.successful = successful
-        self.failed = failed
-        self.is_partial = is_partial
-
     def _wait_task_with_retry(self, task_id: str) -> dict:
         last_partial_result = None
 
@@ -190,4 +182,14 @@ class LabelsResult:
             return last_partial_result
 
         return {"status": "error", "error": "Таймаут ожидания наклеек или OZON не готов"}
+
+
+class LabelsResult:
+    def __init__(self, file_path, successful, failed, is_partial):
+        self.file_path = file_path
+        self.successful = successful
+        self.failed = failed
+        self.is_partial = is_partial
+
+
 
