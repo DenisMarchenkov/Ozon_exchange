@@ -14,6 +14,7 @@ class DispatchRepository:
     """
     def __init__(self, db):
         self.db = db
+        self.ensure_ozon_task_id_column()
 
 
     # ------------------------------
@@ -179,3 +180,42 @@ class DispatchRepository:
             rows = [dict(row) for row in cur.fetchall()]
 
             return rows
+
+    # ------------------------------
+    # Ozon Task State (New)
+    # ------------------------------
+    def ensure_ozon_task_id_column(self):
+        """
+        Миграция: добавляет колонку ozon_task_id, если её нет.
+        """
+        with self.db.connect() as conn:
+            cur = conn.cursor()
+            try:
+                cur.execute("ALTER TABLE dispatch ADD COLUMN ozon_task_id TEXT")
+                conn.commit()
+            except Exception:
+                # Скорее всего колонка уже есть
+                pass
+
+    def update_ozon_task_id(self, dispatch_id: str, task_id: str):
+        with self.db.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE dispatch
+                SET ozon_task_id = ?
+                WHERE id = ?
+            """, (task_id, dispatch_id))
+            conn.commit()
+
+    def get_ozon_task_id(self, dispatch_id: str) -> Optional[str]:
+        with self.db.connect() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT ozon_task_id
+                FROM dispatch
+                WHERE id = ?
+            """, (dispatch_id,))
+            row = cur.fetchone()
+            if row and "ozon_task_id" in row.keys():
+                return row["ozon_task_id"]
+            return None

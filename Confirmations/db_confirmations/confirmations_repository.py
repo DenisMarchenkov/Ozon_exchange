@@ -141,6 +141,26 @@ class ConfirmationsRepository:
 
         return [row["posting_number"] for row in rows]
 
+    def remove_postings_from_dispatch(self, postings: list[str]):
+        """
+        Исключает postings из dispatch (сбрасывает dispatch_id).
+        """
+        if not postings:
+            return
+
+        with self.db.connect() as conn:
+            cur = conn.cursor()
+            placeholders = ",".join("?" for _ in postings)
+            cur.execute(f"""
+                UPDATE confirmations
+                SET dispatch_id = NULL,
+                    status = 'awaiting_delivery',
+                    stickers = 'not_ready',
+                    updated_at = ?
+                WHERE posting_number IN ({placeholders})
+            """, (self._now(), *postings))
+            conn.commit()
+
     def lock_specific_postings(self, dispatch_id: str, postings: list[str]) -> list[str]:
         if not postings:
             return []

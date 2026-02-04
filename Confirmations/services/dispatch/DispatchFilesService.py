@@ -26,9 +26,20 @@ class DispatchFilesService:
         missing_files = self.required_file_types - present_files
 
         if "LABEL" in missing_files and self.labels_generator:
-            label_path = self.labels_generator.download(dispatch_id)
-            if label_path and label_path.exists():
-                self.dispatch_repo.add_file(dispatch_id, "LABEL", label_path)
+            result = self.labels_generator.download(dispatch_id)
+            
+            # Если result вернул failed list — убираем этих ребят из dispatch
+            if result.failed:
+                from Common.logger import get_logger
+                logger = get_logger(__name__)
+                logger.warning(
+                    f"Исключаем {len(result.failed)} заказов из dispatch {dispatch_id} (нет наклеек)"
+                )
+                self.confirmations_repo.remove_postings_from_dispatch(result.failed)
+
+            # Если есть файл — сохраняем
+            if result.file_path and result.file_path.exists():
+                self.dispatch_repo.add_file(dispatch_id, "LABEL", result.file_path)
                 missing_files.remove("LABEL")
 
         if "WAREHOUSE" in missing_files:

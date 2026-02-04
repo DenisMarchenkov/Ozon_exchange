@@ -113,8 +113,30 @@ def main():
     # ============================================================
     # 6. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
+    # ============================================================
+    # 6. ЗАПУСК СЦЕНАРИЕВ
+    # ============================================================
+    # Проверяем, есть ли заказы Ozon, требующие обработки (включая зависшие в awaiting_delivery)
+    has_ozon_pending = False
+    
+    # 1. Новые подтверждения
     if ozon_confirmations:
-        logger.info(f"запуск сценария для {len(ozon_confirmations)} заказов ОЗОН")
+        has_ozon_pending = True
+    
+    # 2. Зависшие в ожидании отгрузки (например, если наклейки не сгенерировались)
+    if not has_ozon_pending:
+        # Проверяем awaiting_delivery только если нет новых, чтобы не делать лишних запросов
+        # Но нужно убедиться, что это именно Ozon заказы.
+        # В текущей схеме division_id хранится в confirmations.
+        # Можно сделать get_by_status("awaiting_delivery"), и отфильтровать по OZON_DIVISION
+        pending_delivery = confirmations_repo.get_by_status("awaiting_delivery")
+        ozon_pending = [c for c in pending_delivery if c["division_id"] in OZON_DIVISION]
+        if ozon_pending:
+            logger.info(f"Найдены {len(ozon_pending)} заказов Ozon в ожидании отгрузки. Запускаем flow.")
+            has_ozon_pending = True
+
+    if has_ozon_pending:
+        logger.info(f"Запуск сценария OZON (новых: {len(ozon_confirmations)})")
         run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db)
 
     if other_confirmations:
