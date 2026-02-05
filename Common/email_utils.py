@@ -4,6 +4,9 @@ from pathlib import Path
 from platform import python_version
 from typing import List
 
+from Common.settings import MAILER_SERVER_SMTP, MAILER_PORT_SMTP
+
+MAILER_PORT_SMTP_INT =int(MAILER_PORT_SMTP)
 
 def send_email(
     *,
@@ -15,8 +18,8 @@ def send_email(
     sender: str,
     smtp_user: str,
     smtp_password: str,
-    smtp_server: str = "smtp.yandex.ru",
-    smtp_port: int = 465,
+    smtp_server: str = MAILER_SERVER_SMTP,
+    smtp_port: int = MAILER_PORT_SMTP_INT,
 ):
     msg = EmailMessage()
     msg["Subject"] = subject

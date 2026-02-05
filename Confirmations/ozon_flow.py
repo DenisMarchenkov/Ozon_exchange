@@ -1,3 +1,5 @@
+import time
+
 from Common.time import now_iso
 from Common.logger import get_logger
 from Confirmations.api.exemplar_status.posting_filters import filter_postings_with_gtd_absent, \
@@ -94,6 +96,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
     # ============================================================
     # 4. Инициализация генератора ярлыков
     # ============================================================
+    time.sleep(10) # задержка, что бы озон успел обновить у себя данные после перевода заказов в "ожидает отгрузки"
     labels_generator = LabelsGenerator()
 
 
