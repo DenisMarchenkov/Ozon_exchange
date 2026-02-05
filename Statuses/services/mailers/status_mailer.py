@@ -139,6 +139,7 @@ class StatusMailer(BaseMailer):
         if has_cancelled:
             lines.append("!!! ВНИМАНИЕ: ОБНАРУЖЕНЫ ОТМЕНЕННЫЕ ЗАКАЗЫ !!!\n")
 
+        # --- таблица изменений ---
         lines.append(
             f"{'Номер заказа':<25} | "
             f"{'Старый статус OZON':<25} | "
@@ -155,11 +156,35 @@ class StatusMailer(BaseMailer):
                 f"{c.get('internal_status', '---'):<20}"
             )
 
+        # --- справочник статусов (через константы) ---
+        lines.append("\n" * 2)
+        lines.append("=" * 40)
+        lines.append("СПРАВОЧНИК СТАТУСОВ")
+        lines.append("=" * 40)
+
+        lines.append("\n--- Внутренние статусы (наша система) ---")
+        for code, desc in self.INTERNAL_STATUSES:
+            lines.append(f"{code:<22} - {desc}")
+
+        lines.append("\n--- Статусы маркетплейса (Ozon) ---")
+        for code, desc in self.OZON_STATUSES:
+            lines.append(f"{code:<22} - {desc}")
+
         return "\n".join(lines)
 
     # ==================== HTML ====================
 
     def build_body_html(self) -> str:
+        if not self.changes:
+            return """
+            <html>
+            <body style="font-family:Arial, sans-serif; font-size:14px;">
+                <p>Добрый день!</p>
+                <p>Изменений статусов за этот период не зафиксировано.</p>
+            </body>
+            </html>
+            """
+
         sorted_changes = sorted(self.changes, key=lambda x: x["new_status"])
         has_cancelled = any(c["new_status"] == "cancelled" for c in sorted_changes)
 
@@ -196,20 +221,20 @@ class StatusMailer(BaseMailer):
                 padding:10px;
                 border:1px solid #ddd;
             ">
-Номер заказа              | Старый статус OZON        | Новый статус OZON         | Внутр. статус
--------------------------------------------------------------------------------------------------
-{table_text}
+    Номер заказа              | Старый статус OZON        | Новый статус OZON         | Внутр. статус
+    -------------------------------------------------------------------------------------------------
+    {table_text}
             </pre>
 
             {self._build_status_table(
-                'Внутренние статусы (наша система)',
-                self.INTERNAL_STATUSES
-            )}
+            'Внутренние статусы (наша система)',
+            self.INTERNAL_STATUSES
+        )}
 
             {self._build_status_table(
-                'Статусы маркетплейса Ozon',
-                self.OZON_STATUSES
-            )}
+            'Статусы маркетплейса Ozon',
+            self.OZON_STATUSES
+        )}
         </body>
         </html>
         """
