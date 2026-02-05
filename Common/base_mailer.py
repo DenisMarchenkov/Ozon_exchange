@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 class BaseMailer(ABC):
     """
     Базовый класс для всех писем.
-    Добавляет name_shop в тему письма по умолчанию.
+    Поддерживает plain-text + HTML.
     """
 
     def __init__(
@@ -21,45 +21,30 @@ class BaseMailer(ABC):
         to: List[str] = RECIPIENT_ADMIN,
         smtp_user: str = MAILER_LOGIN,
         smtp_password: str = MAILER_PASSWORD,
-        sender: str = "OrderGuard"
+        sender: str = "OrderGuard",
     ):
         self.to = to
         self.smtp_user = smtp_user
         self.smtp_password = smtp_password
         self.sender = formataddr((sender, smtp_user))
 
-    # -----------------------------------------------
-    # Методы, которые нужно определить в наследниках
-    # -----------------------------------------------
+    # ---------- Обязательные / переопределяемые ----------
+
     @abstractmethod
     def build_body(self) -> str:
-        """Тело письма — обязателен к переопределению"""
+        """Plain-text тело письма"""
         pass
 
+    def build_body_html(self) -> str | None:
+        """HTML тело письма (опционально)"""
+        return None
+
     def build_subject_core(self) -> str:
-        """
-        Основная тема письма.
-        Необязательная переопределяемая часть.
-        По умолчанию возвращает generic-тему.
-        """
         return "Обновление данных для отправлений"
 
-    def build_subject(self) -> str:
-        """
-        Полная тема письма с названием магазина.
-        Все наследники будут автоматически использовать name_shop.
-        """
-        return f"[{NAME_SHOP}] {self.build_subject_core()}"
-
-    # -----------------------------------------------
-    # Вложения (можно переопределить)
-    # -----------------------------------------------
     def build_attachments(self) -> List[Path]:
         return []
 
-    # -----------------------------------------------
-    # Подпись письма
-    # -----------------------------------------------
     def build_signature(self) -> str:
         return (
             "\n\n\n"
@@ -68,26 +53,31 @@ class BaseMailer(ABC):
             "Это письмо сформировано автоматически"
         )
 
-    # -----------------------------------------------
-    # Основной процесс отправки
-    # -----------------------------------------------
+    # ---------- Внутренняя логика ----------
+
+    def build_subject(self) -> str:
+        return f"[{NAME_SHOP}] {self.build_subject_core()}"
+
     def send(self):
         subject = self.build_subject()
-        body = self.build_body()
-        attachments = self.build_attachments()
 
-        full_body = body + self.build_signature()
+        text_body = self.build_body() + self.build_signature()
+        html_body = self.build_body_html()
+
+        attachments = self.build_attachments()
 
         logger.info(f"Отправка письма: {subject}")
 
         send_email(
             subject=subject,
-            body=full_body,
+            text_body=text_body,
+            html_body=html_body,
             to=self.to,
             attachments=attachments,
             sender=self.sender,
             smtp_user=self.smtp_user,
-            smtp_password=self.smtp_password
+            smtp_password=self.smtp_password,
         )
+
         time.sleep(4)
-        logger.info("Письмо отправлено.")
+        logger.info("Письмо отправлено")
