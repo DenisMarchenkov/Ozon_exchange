@@ -188,17 +188,7 @@ class StatusMailer(BaseMailer):
         sorted_changes = sorted(self.changes, key=lambda x: x["new_status"])
         has_cancelled = any(c["new_status"] == "cancelled" for c in sorted_changes)
 
-        # --- таблица изменений заказов (pre) ---
-        rows = []
-        for c in sorted_changes:
-            rows.append(
-                f"{c['posting_number']:<25} | "
-                f"{(c['old_status'] or 'NEW'):<25} | "
-                f"{c['new_status']:<25} | "
-                f"{c.get('internal_status', '---'):<20}"
-            )
-        table_text = "\n".join(rows)
-
+        # --- основной заголовок и предупреждение ---
         warning = ""
         if has_cancelled:
             warning = """
@@ -207,6 +197,33 @@ class StatusMailer(BaseMailer):
             </p>
             """
 
+        # --- строим HTML-таблицу для заказов ---
+        rows = []
+        for c in sorted_changes:
+            # можно подсветить cancelled красным
+            color = "color:#b00020;" if c["new_status"] == "cancelled" else ""
+            rows.append(f"""
+            <tr style="{color}">
+                <td style="border:1px solid #ccc;padding:6px;">{c['posting_number']}</td>
+                <td style="border:1px solid #ccc;padding:6px;">{c.get('old_status') or 'NEW'}</td>
+                <td style="border:1px solid #ccc;padding:6px;">{c['new_status']}</td>
+                <td style="border:1px solid #ccc;padding:6px;">{c.get('internal_status', '---')}</td>
+            </tr>
+            """)
+
+        table_html = f"""
+        <table style="border-collapse:collapse;width:100%;font-size:13px;margin-bottom:20px;">
+            <tr style="background:#f0f0f0;">
+                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Номер заказа</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Старый статус OZON</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Новый статус OZON</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Внутр. статус</th>
+            </tr>
+            {''.join(rows)}
+        </table>
+        """
+
+        # --- финальный HTML ---
         return f"""
         <html>
         <body style="font-family:Arial, sans-serif; font-size:14px;">
@@ -214,17 +231,7 @@ class StatusMailer(BaseMailer):
             {warning}
             <p>Зафиксированы изменения статусов заказов на маркетплейсе Ozon:</p>
 
-            <pre style="
-                font-family:Consolas,Menlo,monospace;
-                font-size:13px;
-                background:#f8f8f8;
-                padding:10px;
-                border:1px solid #ddd;
-            ">
-    Номер заказа              | Старый статус OZON        | Новый статус OZON         | Внутр. статус
-    -------------------------------------------------------------------------------------------------
-    {table_text}
-            </pre>
+            {table_html}
 
             {self._build_status_table(
             'Внутренние статусы (наша система)',
