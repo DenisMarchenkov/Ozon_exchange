@@ -232,7 +232,11 @@ class StatusMailer(BaseMailer):
             <p>Зафиксированы изменения статусов заказов на маркетплейсе Ozon:</p>
 
             {table_html}
-
+            
+            <p style="margin-top:30px; margin-bottom:10px;">
+                Ниже вы можете ознакомиться с расшифровкой статусов
+            </p>
+            
             {self._build_status_table(
             'Внутренние статусы (наша система)',
             self.INTERNAL_STATUSES
@@ -242,6 +246,8 @@ class StatusMailer(BaseMailer):
             'Статусы маркетплейса Ozon',
             self.OZON_STATUSES
         )}
+        
+            {self.build_signature_html()}
         </body>
         </html>
         """

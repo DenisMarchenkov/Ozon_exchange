@@ -53,6 +53,19 @@ class BaseMailer(ABC):
             "Это письмо сформировано автоматически"
         )
 
+    def build_signature_html(self) -> str:
+        """
+        HTML-подпись для письма.
+        Используется для HTML версии письма.
+        """
+        return """
+        <p style="margin-top:40px; font-size:12px; color:#666;">
+            <b>OrderGuard</b><br>
+            Система контроля заказов<br>
+            Это письмо сформировано автоматически
+        </p>
+        """
+
     # ---------- Внутренняя логика ----------
 
     def build_subject(self) -> str:
