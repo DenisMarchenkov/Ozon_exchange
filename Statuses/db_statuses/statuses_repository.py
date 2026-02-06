@@ -52,6 +52,7 @@ def update_ozon_info(
         cur.execute("""
             UPDATE confirmations
             SET
+                status = CASE WHEN :marketplace_status = 'cancelled' THEN 'cancelled' ELSE status END,
                 marketplace_status = :marketplace_status,
                 marketplace_cancel_reason = :marketplace_cancel_reason,
                 marketplace_status_updated_at = :marketplace_status_updated_at,
@@ -77,7 +78,7 @@ def set_check_error(db, confirmation_id: int, message: str):
             SET
                 error_message = :message,
                 updated_at = :now_iso
-            WHERE posting_number = :conf_id
+            WHERE id = :conf_id
         """, {
             "message": message,
             "now_iso": now_iso(),

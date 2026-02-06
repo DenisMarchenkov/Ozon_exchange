@@ -19,12 +19,12 @@ def temp_db(tmp_path):
         cols = [row["name"] for row in rows]
         
         # Гарантируем наличие колонок для теста
-        if 'ozon_status' not in cols:
-            cur.execute("ALTER TABLE confirmations ADD COLUMN ozon_status TEXT")
-        if 'ozon_status_updated_at' not in cols:
-            cur.execute("ALTER TABLE confirmations ADD COLUMN ozon_status_updated_at TEXT")
-        if 'ozon_cancel_reason' not in cols:
-            cur.execute("ALTER TABLE confirmations ADD COLUMN ozon_cancel_reason TEXT")
+        if 'marketplace_status' not in cols:
+            cur.execute("ALTER TABLE confirmations ADD COLUMN marketplace_status TEXT")
+        if 'marketplace_status_updated_at' not in cols:
+            cur.execute("ALTER TABLE confirmations ADD COLUMN marketplace_status_updated_at TEXT")
+        if 'marketplace_cancel_reason' not in cols:
+            cur.execute("ALTER TABLE confirmations ADD COLUMN marketplace_cancel_reason TEXT")
         conn.commit()
         
     return db
@@ -38,17 +38,17 @@ def test_get_active_postings(temp_db):
         """, ('POST1', 1, 'new', '2026-01-28', '2026-01-28'))
         
         cur.execute("""
-            INSERT INTO confirmations (posting_number, division_id, status, ozon_status, created_at, updated_at)
+            INSERT INTO confirmations (posting_number, division_id, status, marketplace_status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
         """, ('POST2', 1, 'new', 'awaiting_packaging', '2026-01-28', '2026-01-28'))
         
         cur.execute("""
-            INSERT INTO confirmations (posting_number, division_id, status, ozon_status, created_at, updated_at)
+            INSERT INTO confirmations (posting_number, division_id, status, marketplace_status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
         """, ('POST3', 1, 'new', 'delivered', '2026-01-28', '2026-01-28'))
         conn.commit()
 
-    active = get_active_postings(temp_db)
+    active = get_active_postings(temp_db, division_id=1)
     posting_numbers = [p["posting_number"] for p in active]
     
     assert "POST1" in posting_numbers
@@ -68,8 +68,8 @@ def test_update_ozon_info(temp_db):
     update_ozon_info(
         temp_db, 
         conf_id, 
-        ozon_status="delivering", 
-        ozon_cancel_reason="not cancelled",
+        marketplace_status="delivering", 
+        marketplace_cancel_reason="not cancelled",
         error_message="no error"
     )
 
@@ -80,9 +80,25 @@ def test_update_ozon_info(temp_db):
 
     assert row is not None
     assert row["status"] == "internal_status"
-    assert row["ozon_status"] == "delivering"
-    assert row["ozon_cancel_reason"] == "not cancelled"
+    assert row["marketplace_status"] == "delivering"
+    assert row["marketplace_cancel_reason"] == "not cancelled"
     assert row["error_message"] == "no error"
+
+    # Проверяем синхронизацию отмены
+    update_ozon_info(
+        temp_db,
+        conf_id,
+        marketplace_status="cancelled",
+        marketplace_cancel_reason="customer cancelled"
+    )
+
+    with temp_db.connect() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT status, marketplace_status FROM confirmations WHERE id = ?", (conf_id,))
+        row = cur.fetchone()
+
+    assert row["marketplace_status"] == "cancelled"
+    assert row["status"] == "cancelled"
 
 def test_set_check_error(temp_db):
     with temp_db.connect() as conn:
