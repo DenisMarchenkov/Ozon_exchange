@@ -21,6 +21,7 @@ class StatusMailer(BaseMailer):
         ("error", "Ошибка при попытке собрать заказ через API"),
         ("IN_DISPATCH", "Заказ включён в задание для склада"),
         ("READY_FOR_SHIPMENT", "Полностью подготовлен и ожидает сборки на складе"),
+        ("cancelled", "Заказ отменен клиентом через ЛК ОЗОН"),
     ]
 
     OZON_STATUSES = [
@@ -29,8 +30,8 @@ class StatusMailer(BaseMailer):
         ("awaiting_deliver", "Ожидает отгрузки"),
         ("delivering", "Доставляется"),
         ("driver_pickup", "Передан водителю для доставки"),
-        ("cancelled", "Отменён"),
-        ("delivered", "Доставлен"),
+        ("cancelled", "Заказ отменён"),
+        ("delivered", "Заказ доставлен"),
         ("not_accepted", "Не принят на сортировочном центре"),
         ("awaiting_registration", "Ожидает регистрации"),
         ("awaiting_approve", "Ожидает подтверждения"),
@@ -67,16 +68,18 @@ class StatusMailer(BaseMailer):
             f"{'Номер заказа':<25} | "
             f"{'Старый статус OZON':<25} | "
             f"{'Новый статус OZON':<25} | "
-            f"{'Внутр. статус':<20}"
+            f"{'Старый внутр.':<20} | "
+            f"{'Новый внутр.':<20}"
         )
-        lines.append("-" * 105)
+        lines.append("-" * 125)
 
         for c in sorted_changes:
             lines.append(
                 f"{c['posting_number']:<25} | "
-                f"{(c['old_status'] or 'NEW'):<25} | "
-                f"{c['new_status']:<25} | "
-                f"{c.get('internal_status', '---'):<20}"
+                f"{str(c.get('old_status') or 'NEW').upper():<25} | "
+                f"{str(c['new_status']).upper():<25} | "
+                f"{str(c.get('old_internal_status', '---')).upper():<20} | "
+                f"{str(c.get('new_internal_status', '---')).upper():<20}"
             )
 
         # --- справочник статусов (через константы) ---
@@ -87,11 +90,11 @@ class StatusMailer(BaseMailer):
 
         lines.append("\n--- Внутренние статусы (наша система) ---")
         for code, desc in self.INTERNAL_STATUSES:
-            lines.append(f"{code:<22} - {desc}")
+            lines.append(f"{code.upper():<22} - {desc}")
 
         lines.append("\n--- Статусы маркетплейса (Ozon) ---")
         for code, desc in self.OZON_STATUSES:
-            lines.append(f"{code:<22} - {desc}")
+            lines.append(f"{code.upper():<22} - {desc}")
 
         return "\n".join(lines)
 
@@ -128,19 +131,21 @@ class StatusMailer(BaseMailer):
             rows.append(f"""
             <tr style="{color}">
                 <td style="border:1px solid #ccc;padding:6px;">{c['posting_number']}</td>
-                <td style="border:1px solid #ccc;padding:6px;">{c.get('old_status') or 'NEW'}</td>
-                <td style="border:1px solid #ccc;padding:6px;">{c['new_status']}</td>
-                <td style="border:1px solid #ccc;padding:6px;">{c.get('internal_status', '---')}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c.get('old_status') or 'NEW').upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c['new_status']).upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c.get('old_internal_status', '---')).upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c.get('new_internal_status', '---')).upper()}</td>
             </tr>
             """)
 
         table_html = f"""
         <table style="border-collapse:collapse;width:100%;font-size:13px;margin-bottom:20px;">
             <tr style="background:#f0f0f0;">
-                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Номер заказа</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Старый статус OZON</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Новый статус OZON</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Внутр. статус</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Номер заказа</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Старый статус OZON</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Новый статус OZON</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Старый внутр. статус</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Новый внутр. статус</th>
             </tr>
             {''.join(rows)}
         </table>
@@ -181,8 +186,8 @@ class StatusMailer(BaseMailer):
         trs = "".join(
             f"""
             <tr>
-                <td style="border:1px solid #ccc;padding:6px;">
-                    <code>{code}</code>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;">
+                    <code>{code.upper()}</code>
                 </td>
                 <td style="border:1px solid #ccc;padding:6px;">
                     {desc}
@@ -201,8 +206,8 @@ class StatusMailer(BaseMailer):
             margin-bottom:20px;
         ">
             <tr style="background:#f0f0f0;">
-                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Статус</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:left;">Описание</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Статус</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Описание</th>
             </tr>
             {trs}
         </table>

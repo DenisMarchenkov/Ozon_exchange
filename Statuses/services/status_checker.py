@@ -50,7 +50,7 @@ class StatusChecker:
         # Получаем данные от Ozon (внутри семафор OzonClient)
         res = await self.ozon_client.get_posting_status(session, posting_number)
         
-        status = res.get("status")
+        new_marketplace_status = res.get("status")
         cancel_reason = res.get("cancel_reason")
         error = res.get("error")
 
@@ -65,16 +65,20 @@ class StatusChecker:
             update_ozon_info,
             self.db,
             conf_id,
-            marketplace_status=status,
+            marketplace_status=new_marketplace_status,
             marketplace_cancel_reason=cancel_reason
         )
 
-        if status != old_marketplace_status:
+        # Определяем новый внутренний статус на основе логики в БД
+        new_internal_status = "cancelled" if new_marketplace_status == "cancelled" else internal_status
+
+        if new_marketplace_status != old_marketplace_status:
             self.status_changes.append({
                 "posting_number": posting_number,
                 "old_status": old_marketplace_status,
-                "new_status": status,
-                "internal_status": internal_status,
+                "new_status": new_marketplace_status,
+                "old_internal_status": internal_status,
+                "new_internal_status": new_internal_status,
             })
 
-        logger.info("[%s] Синхронизирован статус Ozon: %s", posting_number, status)
+        logger.info("[%s] Синхронизирован статус Ozon: %s", posting_number, new_marketplace_status)
