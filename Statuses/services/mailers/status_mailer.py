@@ -130,22 +130,22 @@ class StatusMailer(BaseMailer):
             color = "color:#b00020;" if c["new_status"] == "cancelled" else ""
             rows.append(f"""
             <tr style="{color}">
-                <td style="border:1px solid #ccc;padding:6px;">{c['posting_number']}</td>
-                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c.get('old_status') or 'NEW').upper()}</td>
-                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c['new_status']).upper()}</td>
-                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c.get('old_internal_status', '---')).upper()}</td>
-                <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(c.get('new_internal_status', '---')).upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;vertical-align:middle;">{c['posting_number']}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">{str(c.get('old_status') or 'NEW').upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">{str(c['new_status']).upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">{str(c.get('old_internal_status', '---')).upper()}</td>
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">{str(c.get('new_internal_status', '---')).upper()}</td>
             </tr>
             """)
 
         table_html = f"""
         <table style="border-collapse:collapse;width:100%;font-size:13px;margin-bottom:20px;">
             <tr style="background:#f0f0f0;">
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Номер заказа</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Старый статус OZON</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Новый статус OZON</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Старый внутр. статус</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Новый внутр. статус</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Номер заказа</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Старый статус OZON</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Новый статус OZON</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Старый внутр. статус</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Новый внутр. статус</th>
             </tr>
             {''.join(rows)}
         </table>
@@ -186,10 +186,10 @@ class StatusMailer(BaseMailer):
         trs = "".join(
             f"""
             <tr>
-                <td style="border:1px solid #ccc;padding:6px;text-align:center;">
+                <td style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">
                     <code>{code.upper()}</code>
                 </td>
-                <td style="border:1px solid #ccc;padding:6px;">
+                <td style="border:1px solid #ccc;padding:6px;vertical-align:middle;">
                     {desc}
                 </td>
             </tr>
@@ -206,8 +206,8 @@ class StatusMailer(BaseMailer):
             margin-bottom:20px;
         ">
             <tr style="background:#f0f0f0;">
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Статус</th>
-                <th style="border:1px solid #ccc;padding:6px;text-align:center;">Описание</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Статус</th>
+                <th style="border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;">Описание</th>
             </tr>
             {trs}
         </table>
