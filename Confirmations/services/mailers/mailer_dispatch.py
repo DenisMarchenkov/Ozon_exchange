@@ -18,7 +18,8 @@ class DispatchMailer(BaseMailer):
     #               Тема письма
     # -----------------------------------------------
     def build_subject_core(self) -> str:
-        return "Заказы к сбору"
+        count = len(self.processing_orders)
+        return f"Заказы к сбору ({count} шт.)"
 
     # -----------------------------------------------
     #               Тело письма

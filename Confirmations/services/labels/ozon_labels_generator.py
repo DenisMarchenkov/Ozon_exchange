@@ -11,8 +11,7 @@ logger = get_logger(__name__)
 
 class LabelsGenerator:
     MAX_RETRIES = 5
-    CHECK_INTERVALS = [10, 30, 60, 120, 300]  # сек
-
+    CHECK_INTERVALS = [10, 30, 60, 120]  # сек
     def __init__(self):
         self.api = OzonLabelsAPI()
         self.repo = ConfirmationsRepository()

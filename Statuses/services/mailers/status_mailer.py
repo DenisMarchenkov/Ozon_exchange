@@ -47,7 +47,10 @@ class StatusMailer(BaseMailer):
         self.changes = changes
 
     def build_subject_core(self) -> str:
-        return f"Изменение статусов заказов ({len(self.changes)} шт.)"
+        has_cancelled = any(c["new_status"] == "cancelled" for c in self.changes)
+        prefix = "⚠ ОБНАРУЖЕНЫ ОТМЕНЕННЫЕ ЗАКАЗЫ | " if has_cancelled else ""
+
+        return f"{prefix}Изменение статусов заказов ({len(self.changes)} шт.)"
 
     # ==================== TEXT ====================
 
