@@ -1,51 +1,71 @@
 import pandas as pd
 import hashlib
 from pathlib import Path
-from typing import Iterable, Optional
 
-def extract_excel_metadata(
+
+def extract_excel_metadata_per_sheet(
     file_path: str | Path,
-    columns_for_hash: Iterable[str],
-    sort_by: Optional[str | list[str]] = None,
-    sheet_name: int | str = 0,
+    sheets_info: list[dict],  # [{"sheet_name": 0, "columns_for_hash": [...], "sort_by": [...]}, ...]
 ) -> dict:
     """
-    Извлекает метаданные Excel-файла и считает хеш по выбранным колонкам.
-
-    :param file_path: путь к файлу xls/xlsx
-    :param columns_for_hash: список колонок для хеша
-    :param sort_by: колонка или список колонок для стабильной сортировки
-    :param sheet_name: лист Excel (по умолчанию первый)
-    :return: словарь с метаданными
+    Считает метаданные Excel-файла по каждому листу отдельно.
     """
     file_path = Path(file_path)
-
     if not file_path.exists():
         raise FileNotFoundError(f"Файл не найден: {file_path}")
 
-    # читаем Excel
-    df = pd.read_excel(file_path, sheet_name=sheet_name)
-
-    # проверка колонок для хеша
-    missing = set(columns_for_hash) - set(df.columns)
-    if missing:
-        raise ValueError(f"В файле нет колонок: {missing}")
-
-    # хеш по выбранным колонкам
-    df_hash = df[list(columns_for_hash)].fillna("").astype(str)
-    if sort_by:
-        df_hash = df_hash.sort_values(by=sort_by)
-    data_string = "|".join(df_hash.values.flatten())
-    file_hash = hashlib.sha256(data_string.encode("utf-8")).hexdigest()
-
-    # метаданные
-    metadata = {
+    result = {
         "name": file_path.name,
-        "file_hash": file_hash,
         "file_size": file_path.stat().st_size,
-        "row_count": len(df),
-        "columns": ",".join(df.columns),
-        "total_qty": int(df["Количество"].sum()) if "Количество" in df.columns else None,
+        "sheets": [],
+        "row_count": 0,
+        "columns": [],
+        "total_qty": 0
     }
 
-    return metadata
+    schema_info = []
+    total_qty_sum = 0
+    has_qty_column = False
+    
+    for sheet in sheets_info:
+        sheet_name = sheet["sheet_name"]
+        columns_for_hash = sheet["columns_for_hash"]
+        sort_by = sheet.get("sort_by")
+
+        df = pd.read_excel(file_path, sheet_name=sheet_name)
+
+        missing = set(columns_for_hash) - set(df.columns)
+        if missing:
+            raise ValueError(f"Лист '{sheet_name}': нет колонок {missing}")
+
+        df_hash = df[columns_for_hash].fillna("").astype(str)
+        if sort_by:
+            df_hash = df_hash.sort_values(by=sort_by)
+
+        data_string = "|".join(df_hash.values.flatten())
+        file_hash = hashlib.sha256(data_string.encode("utf-8")).hexdigest()
+
+        total_qty = int(df["Количество"].sum()) if "Количество" in df.columns else None
+        if total_qty is not None:
+            total_qty_sum += total_qty
+            has_qty_column = True
+
+        result["sheets"].append({
+            "sheet_name": sheet_name,
+            "file_hash": file_hash,
+            "row_count": len(df),
+            "columns": ",".join(df.columns),
+            "total_qty": total_qty,
+        })
+        
+        result["row_count"] += len(df)
+
+        schema_info.append(f"{sheet_name}({len(df)}x{len(df.columns)})")
+
+    # Вычисляем комбинированный хеш по всем листам
+    combined_hash_str = "|".join(s["file_hash"] for s in result["sheets"])
+    result["file_hash"] = hashlib.sha256(combined_hash_str.encode("utf-8")).hexdigest()
+    result["columns"] = "; ".join(schema_info)
+    result["total_qty"] = total_qty_sum if has_qty_column else None
+
+    return result

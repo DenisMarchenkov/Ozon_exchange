@@ -161,7 +161,7 @@ class LabelsGenerator:
                 logger.warning(
                     f"Частично сгенерированы наклейки (статус {status}), пропавшие: {len(unprinted)}. "
                     f"Ждем, возможно Ozon доработает. Попытка {attempt}."
-                    f"Сырой ответ {unprinted}"
+                    f"Сырой ответ: {unprinted}"
                 )
                 last_partial_result = info
             

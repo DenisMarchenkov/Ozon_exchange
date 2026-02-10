@@ -24,7 +24,7 @@ class BaseExcelReader:
         files = self.filter_files(files)
 
         if not files:
-            logger.warning("Нет подходящих файлов для обработки")
+            logger.info("Нет подходящих файлов для обработки")
             return pd.DataFrame()
 
         frames = []

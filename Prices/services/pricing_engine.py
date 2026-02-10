@@ -150,11 +150,12 @@ class PricingEngine:
         - признак ручной наценки
     """
 
-    def __init__(self, global_data: dict, manual_data: dict, price_repo, supplier_price_id: str):
+    def __init__(self, global_data: dict, manual_data: dict, price_repo, supplier_price_id: int, markup_file_id: int):
         self.global_data = global_data or {}
         self.manual_map = manual_data or {}
         self.price_repo = price_repo
         self.supplier_price_id = supplier_price_id
+        self.markup_file_id = markup_file_id
 
         logger.info("Инициализация ценового движка.")
 
@@ -321,6 +322,7 @@ class PricingEngine:
 
         self.price_repo.save_price_calculation(
             supplier_price_id=self.supplier_price_id,
+            markup_file_id=self.markup_file_id,
             sku_art=sku,
             supplier_price=supplier_price,
             calc=final_calc,

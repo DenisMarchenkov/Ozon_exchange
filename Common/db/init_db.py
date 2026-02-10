@@ -147,42 +147,98 @@ def init_dispatch_schema(db):
 
         conn.commit()
 
+
 def init_prices_schema(db):
     with db.connect() as conn:
         cur = conn.cursor()
+
+        # -------------------------------------------------
+        # ФАЙЛЫ ПОСТАВЩИКОВ
+        # -------------------------------------------------
         cur.execute("""
-                    CREATE TABLE IF NOT EXISTS supplier_prices (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name TEXT NOT NULL,
-                        file_hash TEXT NOT NULL,
-                        file_size INTEGER NOT NULL,
-                        row_count INTEGER NOT NULL,
-                        columns TEXT NOT NULL,
-                        supplier_id INTEGER NOT NULL,
-                        total_qty INTEGER NOT NULL,
-                        created_at TEXT NOT NULL
-                        )
-                    """)
+            CREATE TABLE IF NOT EXISTS supplier_prices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                name TEXT NOT NULL,
+                file_hash TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                row_count INTEGER NOT NULL,
+                columns TEXT NOT NULL,
+
+                supplier_id INTEGER NOT NULL,
+                total_qty INTEGER NOT NULL,
+
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # -------------------------------------------------
+        # ФАЙЛЫ НАЦЕНОК
+        # -------------------------------------------------
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS markup_files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                name TEXT NOT NULL,
+                file_hash TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                row_count INTEGER NOT NULL,
+                columns TEXT NOT NULL,
+
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # -------------------------------------------------
+        # РЕЗУЛЬТАТЫ ПЕРЕСЧЁТА ЦЕН
+        # -------------------------------------------------
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS price_calculations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                supplier_price_id INTEGER NOT NULL,
+                markup_file_id INTEGER NOT NULL,
+
+                sku_art TEXT NOT NULL,
+                supplier_price REAL NOT NULL,
+
+                min_price REAL NOT NULL,
+                price REAL NOT NULL,
+                old_price REAL NOT NULL,
+
+                manual INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+
+                FOREIGN KEY (supplier_price_id)
+                    REFERENCES supplier_prices(id)
+                    ON DELETE CASCADE,
+
+                FOREIGN KEY (markup_file_id)
+                    REFERENCES markup_files(id)
+            )
+        """)
+
+        # -------------------------------------------------
+        # ИНДЕКСЫ (для скорости и порядка)
+        # -------------------------------------------------
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_supplier_prices_supplier
+            ON supplier_prices(supplier_id, created_at)
+        """)
 
         cur.execute("""
-                    CREATE TABLE IF NOT EXISTS price_calculations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+            CREATE INDEX IF NOT EXISTS idx_markup_files_created
+            ON markup_files(created_at)
+        """)
 
-                    supplier_price_id INTEGER NOT NULL,   -- связь с файлом поставщика
-                    sku_art TEXT NOT NULL,
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_calc_supplier_price
+            ON price_calculations(supplier_price_id)
+        """)
 
-                    supplier_price REAL NOT NULL,
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_calc_markup_file
+            ON price_calculations(markup_file_id)
+        """)
 
-                    min_price REAL NOT NULL,
-                    price REAL NOT NULL,
-                    old_price REAL NOT NULL,
-
-                    manual INTEGER NOT NULL,               -- 0 / 1
-                    created_at TEXT NOT NULL,
-
-                    FOREIGN KEY (supplier_price_id)
-                        REFERENCES supplier_prices(id)
-                        ON DELETE CASCADE
-                    )
-                """)
         conn.commit()
