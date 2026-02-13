@@ -94,15 +94,11 @@ def main():
     # ============================================================
     # 5. РАЗДЕЛЕНИЕ ПОДТВЕРЖДЕНИЙ
     # ============================================================
-    # confirmed = confirmations_repo.get_by_status("confirmed")
-    # error = confirmations_repo.get_by_status("error")
-    # ship_not_available = confirmations_repo.get_by_status("ship_not_available")
-    # all_confirmations = confirmed + error + ship_not_available
-
     # confirmed - подтвержденные заказы
     # error - подхватываем которые ранее при обновлении завершились ошибкой
-    # ship_not_available - в которых нужно было уточнить гтд, маркировку...
-    statuses = ['confirmed', 'error', 'ship_not_available']
+    # ship_not_available - ранее не доступные для перевода в "ожидают отгрузке" на озон
+    # is_gtd_absent - в которых нужно было уточнить гтд
+    statuses = ['confirmed', 'error', 'ship_not_available', 'is_gtd_absent']
     all_confirmations = confirmations_repo.get_by_statuses(statuses)
 
     ozon_confirmations = [c for c in all_confirmations if c["division_id"] in OZON_DIVISION]
@@ -110,9 +106,7 @@ def main():
     yandex_confirmations = [c for c in all_confirmations if c["division_id"] in YANDEX_DIVISION]
 
 
-    # ============================================================
-    # 6. ЗАПУСК СЦЕНАРИЕВ
-    # ============================================================
+
     # ============================================================
     # 6. ЗАПУСК СЦЕНАРИЕВ
     # ============================================================
