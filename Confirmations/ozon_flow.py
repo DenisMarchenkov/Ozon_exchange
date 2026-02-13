@@ -57,24 +57,63 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
                 confirmations_repo.update_status(ship, "ship_not_available")
 
             # оставляем только отправления, для которых отсутствуют данные ГТД
-            is_gtd_absent = filter_postings_with_gtd_absent(ship_not_available)
-            for ship in list(is_gtd_absent.keys()):
+            # is_gtd_absent = filter_postings_with_gtd_absent(ship_not_available)
+            # for ship in list(is_gtd_absent.keys()):
+            #     confirmations_repo.update_status(ship, "is_gtd_absent")
+
+            is_gtd_absent = {}
+            for posting_number in ship_not_available:
+                try:
+                    # Получаем полный статус через новый метод
+                    full_status_resp = service.api.get_full_exemplar_status(posting_number)
+                    full_status = full_status_resp.get("result", {})
+
+                    products_with_missing_gtd = []
+                    for product in full_status.get("products", []):
+                        if product.get("is_gtd_needed", False):
+                            # Копируем экземпляры и ставим флаг is_gtd_absent для совместимости
+                            exemplars = []
+                            for ex in product.get("exemplars", []):
+                                ex_copy = ex.copy()
+                                ex_copy["is_gtd_absent"] = True
+                                exemplars.append(ex_copy)
+
+                            product_copy = product.copy()
+                            product_copy["exemplars"] = exemplars
+                            products_with_missing_gtd.append(product_copy)
+
+                    if products_with_missing_gtd:
+                        is_gtd_absent[posting_number] = {
+                            "posting_number": posting_number,
+                            "products": products_with_missing_gtd
+                        }
+
+                except Exception as e:
+                    logger.error(f"[EX_STATUS] {posting_number}: ошибка запроса полного статуса: {e}")
+
+            # Обновляем статус в репозитории
+            for ship in is_gtd_absent:
                 confirmations_repo.update_status(ship, "is_gtd_absent")
+
+
+            if is_gtd_absent:
+                # обновить данные ГТД в озон
+                gtd_repo = GtdRepository(db)
+                gtd_service = OzonGtdPreparationService(gtd_repo=gtd_repo)
+                payloads = gtd_service.prepare(is_gtd_absent)
+
+                ozon_client = OzonGtdUpdater()
+                for payload in payloads:
+                    try:
+                        ozon_client.update_gtd(payload)
+                        time.sleep(0.1)
+                    except Exception as e:
+                        logger.error(f"[GTD_UPDATE] Ошибка обновления GTD для {payload.get('posting_number')}: {e}")
 
             # оставляем только отправления, для которых отсутствуют коды маркировке "Честный знак"
             is_marking_absent = filter_postings_requiring_mandatory_marking(ship_not_available)
             for ship in list(is_marking_absent.keys()):
                 confirmations_repo.update_status(ship, "is_marking_absent")
-
-            # обновить данные ГТД в озон
-            gtd_repo = GtdRepository(db)
-            gtd_service = OzonGtdPreparationService(gtd_repo=gtd_repo)
-            payloads = gtd_service.prepare(is_gtd_absent)
-
-            ozon_client = OzonGtdUpdater()
-            for payload in payloads:
-                ozon_client.update_gtd(payload)
-
             # todo обновить коды маркировки в озон используя is_marking_absent. Написать OzonGtdPreparationService
 
 

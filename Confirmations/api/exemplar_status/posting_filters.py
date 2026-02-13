@@ -12,6 +12,20 @@ def filter_postings_with_gtd_absent(postings: dict) -> dict:
         )
     }
 
+#
+# def filter_postings_with_gtd_absent_new(postings: dict) -> dict:
+#     """
+#     Возвращает только отправления, для которых нужен ГТД.
+#     """
+#     result = {}
+#     for posting_number, posting in postings.items():
+#         full_status = posting.get("result", posting)  # если уже полный ответ или старый
+#         for product in full_status.get("products", []):
+#             if product.get("is_gtd_needed", False):
+#                 result[posting_number] = posting
+#                 break
+#     return result
+#
 
 def filter_postings_requiring_mandatory_marking(postings: dict) -> dict:
     """

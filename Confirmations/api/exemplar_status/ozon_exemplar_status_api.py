@@ -12,6 +12,10 @@ class OzonExemplarStatusAPI:
         "https://api-seller.ozon.ru/v5/fbs/posting/product/exemplar/status"
     )
 
+    URL_GET_EXEMPLAR_STATUS = (
+        "https://api-seller.ozon.ru/v6/fbs/posting/product/exemplar/create-or-get"
+    )
+
     def __init__(self):
         self.headers = {
             "Client-Id": CLIENT_ID,
@@ -25,6 +29,17 @@ class OzonExemplarStatusAPI:
         """
         return send_request_with_retries(
             url=self.URL_STATUS,
+            method="POST",
+            headers=self.headers,
+            body={"posting_number": posting_number},
+        )
+
+    def get_full_exemplar_status(self, posting_number: str) -> dict:
+        """
+        Возвращает сырой ответ Ozon.
+        """
+        return send_request_with_retries(
+            url=self.URL_GET_EXEMPLAR_STATUS,
             method="POST",
             headers=self.headers,
             body={"posting_number": posting_number},
