@@ -52,6 +52,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
         # для не разрешенных отправлений
         if ship_not_available:
             logger.info(f"НЕ одобренные для ship: {len(ship_not_available)}")
+            logger.info(f"НЕ одобренные для ship: {ship_not_available}")
             for ship in list(ship_not_available.keys()):
                 confirmations_repo.update_status(ship, "ship_not_available")
 
