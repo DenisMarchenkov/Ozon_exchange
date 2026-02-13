@@ -11,5 +11,5 @@
   "DATE_ORDER": ["DATEZ", "ORDER_DATE"],
   "DATE_SHIP": ["HDRTAG1", "SHIP_DATE"],
   "REFUSED": ["REFUSED", "REJECTED", "REF"],
-  "GTD": ["GTD", "GTD_NUM"]
+  "GTD": ["GTD", "GTD_NUM", "NUMGTD"]
 }

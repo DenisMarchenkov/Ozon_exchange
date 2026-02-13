@@ -73,7 +73,7 @@ else:
 
 
 # Исходный файл от поставщика
-SUPPLIER_PRICE_FILENAME = "stock-update-template_with_price_FD.xls"
+SUPPLIER_PRICE_FILENAME = "price_farmaderm.xls"
 SUPPLIER_SOURCE_FILE = os.path.join(SUPPLIER_SOURCE, SUPPLIER_PRICE_FILENAME)
 
 
@@ -95,7 +95,7 @@ MAILER_SERVER_SMTP = "smtp.yandex.ru"
 MAILER_PORT_SMTP = "465"
 MAILER_LOGIN = os.getenv("MAILER_LOGIN")
 MAILER_PASSWORD = os.getenv("MAILER_PASSWORD_API")
-RECIPIENT_ADMIN = ["Dmarchenkov@gmail.com"]
+RECIPIENT_ADMIN = ["DenisMarchenkov@dfarm.ru", "blinkin@dfarm.ru", "sklad@frenchpharmacy.ru"]
 
 
 # ============================================================
