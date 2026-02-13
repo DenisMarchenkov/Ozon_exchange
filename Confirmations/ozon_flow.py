@@ -66,6 +66,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
                 try:
                     # Получаем полный статус через новый метод
                     full_status_resp = service.api.get_full_exemplar_status(posting_number)
+                    logger.info(full_status_resp)
                     full_status = full_status_resp.get("result", {})
 
                     products_with_missing_gtd = []
