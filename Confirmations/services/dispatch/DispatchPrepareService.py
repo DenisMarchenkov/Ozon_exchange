@@ -15,7 +15,7 @@ class DispatchPrepareService:
         self.confirmations_repo = confirmations_repo
         self.files_service = files_service
 
-    def prepare(self, dispatch_id: str, postings_to_lock: list[str] | None = None):
+    def prepare(self, dispatch_id: str, postings_to_lock: list[str] | None = None, divisions: tuple = None):
         logger.info(f"Подготовка dispatch {dispatch_id}")
 
         if not self.dispatch_repo.exists(dispatch_id):
@@ -31,7 +31,7 @@ class DispatchPrepareService:
                 )
             else:
                 locked_postings = self.confirmations_repo.lock_postings_for_dispatch(
-                    dispatch_id
+                    dispatch_id, divisions
                 )
 
             if not locked_postings:

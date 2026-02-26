@@ -50,6 +50,22 @@ if not all([API_TOKEN, CLIENT_ID, WAREHOUSE_ID]):
 
 
 # ============================================================
+# 🔹 YANDEX API (ИЗ .env)
+# ============================================================
+if DEV_MODE:
+    # YANDEX_API_TOKEN = "test_yandex_token"
+    # YANDEX_BUSINESS_ID = "test_yandex_business_id"
+    YANDEX_API_TOKEN = "ACMA:US3OObmytXCfR17WGPO1aEeO0bjoWXEkVUCDUJMt:484197b6"
+    YANDEX_BUSINESS_ID = "835879"
+else:
+    YANDEX_API_TOKEN = os.getenv("YANDEX_API_TOKEN")
+    YANDEX_BUSINESS_ID = os.getenv("YANDEX_BUSINESS_ID")
+
+if not all([YANDEX_API_TOKEN, YANDEX_BUSINESS_ID]):
+    raise RuntimeError("❌ Не заданы YANDEX API переменные в .env!")
+
+
+# ============================================================
 # 🔹 ФАЙЛЫ И ПАПКИ ПРОЕКТА
 # ============================================================
 # Папка внутри проекта, куда МЫ копируем прайсы поставщика

@@ -24,12 +24,12 @@ ARCHIVE_DIR_WAREHOUSE = os.path.join(ARCHIVE_DIR, "Warehouse_files")
 os.makedirs(ARCHIVE_DIR_WAREHOUSE, exist_ok=True)
 
 # коды подразделения для разделения на потоки обработки
-OZON_DIVISION = {19520, "19520"}
-OTHER_DIVISION = {16176, "16176"}
-YANDEX_DIVISION = {16178, "16178"}
+OZON_DIVISION = {"16176"}
+OTHER_DIVISION = {"16027"}
+YANDEX_DIVISION = {"19742"}
 
 # разрешенные к обработке коды подразделений, для FilePolicy при чтении файлов
-ALLOWED_DIVISIONS = {str(x) for x in OZON_DIVISION}
-# ALLOWED_DIVISIONS = {
-#     str(x) for x in (OZON_DIVISION | OTHER_DIVISION | YANDEX_DIVISION)
-# }
+#ALLOWED_DIVISIONS = {str(x) for x in OZON_DIVISION}
+ALLOWED_DIVISIONS = {
+    str(x) for x in (OZON_DIVISION | OTHER_DIVISION | YANDEX_DIVISION)
+}

@@ -12,11 +12,12 @@ logger = get_logger(__name__)
 
 class LabelsFileManager:
     """
-    Скачивание и сохранение PDF-файлов с наклейками Ozon.
+    Скачивание и сохранение PDF-файлов с наклейками.
     """
 
-    def __init__(self):
+    def __init__(self, prefix: str = "labels_file_"):
         self.base_dir = self._get_labels_dir()
+        self.prefix = prefix
 
     # -------------------------------------------------
 
@@ -31,7 +32,7 @@ class LabelsFileManager:
 
     # -------------------------------------------------
 
-    def save_labels(self, file_url: str) -> Path:
+    def save_labels(self, file_url: str, custom_headers: dict = None) -> Path:
         file_path = self.base_dir / self._build_filename()
 
         if DEV_MODE:
@@ -44,6 +45,8 @@ class LabelsFileManager:
         headers = {
             "User-Agent": "Mozilla/5.0",
         }
+        if custom_headers:
+            headers.update(custom_headers)
 
         for attempt in range(5):
             try:
@@ -70,9 +73,6 @@ class LabelsFileManager:
 
         raise RuntimeError(f"Не удалось скачать PDF наклеек: {file_url}")
 
-    # -------------------------------------------------
-
-    @staticmethod
-    def _build_filename() -> str:
+    def _build_filename(self) -> str:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        return f"labels_file__{timestamp}.pdf"
+        return f"{self.prefix}{timestamp}.pdf"

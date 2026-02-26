@@ -1,54 +1,80 @@
+import time
 from pathlib import Path
+from typing import List, Optional
+from dataclasses import dataclass
 
-from Common.time import now_iso
-from Common.logger import get_logger
-from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
+from Confirmations.api.yandex_labels_api import YandexLabelsAPI
 from Confirmations.services.labels.labels_file_manager import LabelsFileManager
 
 
-logger = get_logger(__name__)
+@dataclass
+class LabelDownloadResult:
+    file_path: Optional[Path]
+    failed: List[str]
+
 
 class YandexLabelsGenerator:
-    """
-    Класс генерации ярлыков для Yandex
-    """
-    MAX_WAIT_TIME = 120
-    CHECK_INTERVAL = 5
 
-    def __init__(self, business_id: int, headers: dict, file_manager=None):
-        #todo YandexLabelsAPI
-        self.api = YandexLabelGenerator(business_id=business_id, headers=headers)
-        self.repo = ConfirmationsRepository()
-        self.files = file_manager or LabelsFileManager()
+    def __init__(
+        self,
+        confirmations_repo,
+        logger,
+        format_pdf: str = "A7",
+        max_poll_attempts: int = 5,
+        poll_delay: int = 5,
+    ):
+        self.api = YandexLabelsAPI(format_pdf=format_pdf)
+        self.confirmations_repo = confirmations_repo
+        self.logger = logger
+        self.max_poll_attempts = max_poll_attempts
+        self.poll_delay = poll_delay
+        self.files = LabelsFileManager(prefix="yandex_labels__")
 
-    def generate_for_dispatch(self, dispatch_id) -> Path | None:
-        """
-        Генерация ярлыков для dispatch с использованием LabelsFileManager.
-        """
-        postings = self.repo.get_postings_by_dispatch(dispatch_id)
-        postings = list(set(postings))
+    # ============================================================
+    # Метод, который вызывает DispatchFilesService
+    # ============================================================
+    def download(self, dispatch_id: str) -> LabelDownloadResult:
 
-        if not postings:
-            logger.info("Нет заказов для генерации ярлыков Yandex")
-            return None
+        items = self.confirmations_repo.get_items_by_dispatch(dispatch_id)
+        if not items:
+            return LabelDownloadResult(file_path=None, failed=[])
 
-        logger.info(f"Генерация ярлыков для {len(postings)} заказов")
-        self.repo.update_stickers_status(postings, "creating", now_iso())
+        order_ids = list({item["posting_number"] for item in items})
 
-        order_ids = [p["order_id"] for p in postings]
+        report_id = self.api.create_report(order_ids)
+        if not report_id:
+            return LabelDownloadResult(file_path=None, failed=order_ids)
+
+        file_url = self._wait_until_ready(report_id)
+        if not file_url:
+            return LabelDownloadResult(file_path=None, failed=order_ids)
+
         try:
-            result_file_url = self.api.generate_labels_for_orders(order_ids)
+            file_path = self.files.save_labels(file_url, custom_headers=self.api.headers)
+            return LabelDownloadResult(file_path=file_path, failed=[])
         except Exception as e:
-            logger.error(f"Ошибка генерации ярлыков: {e}")
-            self.repo.update_stickers_status(postings, "error", now_iso())
+            self.logger.error(f"Ошибка сохранения ярлыков Yandex: {e}")
+            return LabelDownloadResult(file_path=None, failed=order_ids)
+
+    # ============================================================
+    # Ожидание готовности
+    # ============================================================
+    def _wait_until_ready(self, report_id: str) -> Optional[str]:
+
+        for _ in range(self.max_poll_attempts):
+
+            result = self.api.get_report_status(report_id=report_id)
+            status = result.get("status")
+
+            if status == "DONE":
+                return result.get("file")
+
+            if status in ["PROCESSING", "NEW", "PENDING"]:
+                time.sleep(self.poll_delay)
+                continue
+
+            self.logger.error(f"Ошибка генерации ярлыков Yandex: статус={status}, ответ={result}")
             return None
 
-        if result_file_url:
-            path = self.files.save_labels(result_file_url)
-            self.repo.update_stickers_status(postings, "ready", now_iso())
-            logger.info(f"Ярлыки Yandex сохранены: {path}")
-            return path
-        else:
-            self.repo.update_stickers_status(postings, "error", now_iso())
-            logger.error("Не удалось получить ярлыки Yandex")
-            return None
+        return None
+

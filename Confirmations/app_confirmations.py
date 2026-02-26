@@ -84,9 +84,22 @@ def main():
     refused_items = confirmations_repo.get_items_by_statuses_conf_and_item(
         "awaiting_confirmation", "REFUSED")
     if refused_items:
-        logger.warning("Есть отказанные позиции")
+        logger.info("Есть отказанные позиции")
+
         mailer = ShortageMailer(shortage_rows=refused_items)
-        mailer.send()
+
+        try:
+            mailer.send()
+
+            item_ids = [item["id"] for item in refused_items]
+            confirmations_repo.mark_items_shortage_notified(item_ids)
+
+            logger.info(
+                f"Статус {len(item_ids)} позиций обновлён на SHORTAGE_NOTICE_SENT"
+            )
+
+        except Exception:
+            logger.exception("Ошибка при отправке письма о нехватке товара")
     else:
         logger.info("Нет данных для письма о нехватке товара")
 

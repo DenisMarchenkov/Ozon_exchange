@@ -110,7 +110,7 @@ class ConfirmationsRepository:
     # ------------------------------
     # 🔒 Dispatch logic (НОВОЕ)
     # ------------------------------
-    def lock_postings_for_dispatch(self, dispatch_id: str) -> List[str]:
+    def lock_postings_for_dispatch(self, dispatch_id: str, divisions: tuple = None) -> List[str]:
         """
         Атомарно закрепляет postings за dispatch.
         Повторный вызов безопасен.
@@ -120,21 +120,44 @@ class ConfirmationsRepository:
         with self.db.connect() as conn:
             cur = conn.cursor()
 
-            cur.execute("""
-                UPDATE confirmations
-                SET
-                    dispatch_id = ?,
-                    status = 'IN_DISPATCH',
-                    updated_at = ?
-                WHERE id IN (
-                    SELECT id
-                    FROM confirmations
-                    WHERE status = 'awaiting_delivery'
-                      AND stickers = 'not_ready'
-                      AND dispatch_id IS NULL
-                )
-                RETURNING posting_number;
-            """, (dispatch_id, now))
+            if divisions:
+                placeholders = ",".join("?" for _ in divisions)
+                query = f"""
+                    UPDATE confirmations
+                    SET
+                        dispatch_id = ?,
+                        status = 'IN_DISPATCH',
+                        updated_at = ?
+                    WHERE id IN (
+                        SELECT id
+                        FROM confirmations
+                        WHERE status = 'awaiting_delivery'
+                          AND stickers = 'not_ready'
+                          AND dispatch_id IS NULL
+                          AND division_id IN ({placeholders})
+                    )
+                    RETURNING posting_number;
+                """
+                params = [dispatch_id, now, *divisions]
+            else:
+                query = """
+                    UPDATE confirmations
+                    SET
+                        dispatch_id = ?,
+                        status = 'IN_DISPATCH',
+                        updated_at = ?
+                    WHERE id IN (
+                        SELECT id
+                        FROM confirmations
+                        WHERE status = 'awaiting_delivery'
+                          AND stickers = 'not_ready'
+                          AND dispatch_id IS NULL
+                    )
+                    RETURNING posting_number;
+                """
+                params = [dispatch_id, now]
+
+            cur.execute(query, params)
 
             rows = cur.fetchall()
             conn.commit()
@@ -394,4 +417,24 @@ class ConfirmationsRepository:
                     SET stickers=?, updated_at=?
                     WHERE posting_number=?
                 """, (status, time, posting_number))
+            conn.commit()
+
+    def mark_items_shortage_notified(self, item_ids: list[int]) -> None:
+        if not item_ids:
+            return
+
+        now = self._now()
+
+        with self.db.connect() as conn:
+            cur = conn.cursor()
+
+            placeholders = ",".join("?" for _ in item_ids)
+
+            cur.execute(f"""
+                UPDATE confirmation_items
+                SET item_status = ?,
+                    updated_at = ?
+                WHERE id IN ({placeholders})
+            """, ["SHORTAGE_NOTICE_SENT", now, *item_ids])
+
             conn.commit()

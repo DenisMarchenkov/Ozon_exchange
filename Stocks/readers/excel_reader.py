@@ -33,7 +33,7 @@ def prepare_offers_data(file_products) -> list[dict]:
             offer_id = row["Артикул"]
             count = row["Количество"]
 
-            logger.info("Товар: Артикул=%s, Количество=%d", offer_id, count)
+            # logger.info("Товар: Артикул=%s, Количество=%d", offer_id, count)
 
             offers.append({
                 "offerId": offer_id,
