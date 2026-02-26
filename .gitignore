@@ -24,5 +24,9 @@ Archive/
 *.xlsx
 *.xls
 pytest.ini
+#настройки
+Confirmations/settings_app/settings_confirmations.py
+Orders/settings_app/settings_orders.py
 Prices/settings_app/price change log.xlsx
-
+Prices/settings_app/settings_prices.py
+Statuses/settings_app/settings_statuses.py

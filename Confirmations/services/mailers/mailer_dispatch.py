@@ -13,13 +13,19 @@ class DispatchMailer(BaseMailer):
         super().__init__(*args, **kwargs)
         self.dispatch_files = list(dispatch_files)
         self.processing_orders = processing_orders or []
+        self.dispatch_id = self.dispatch_files[0].get("dispatch_id") if self.dispatch_files else None
+        # Если есть, берём только часть после последнего "_"
+        self.suffix_for_subject = self.dispatch_id.split("_")[-1] if self.dispatch_id else None
 
     # -----------------------------------------------
     #               Тема письма
     # -----------------------------------------------
     def build_subject_core(self) -> str:
         count = len(self.processing_orders)
-        return f"Заказы к сбору ({count} шт.)"
+        subject = f"Заказы к сбору ({count} шт.)"
+        if self.dispatch_id:
+            subject += f" [{self.suffix_for_subject}]"
+        return subject
 
     # -----------------------------------------------
     #               Тело письма
@@ -31,7 +37,6 @@ class DispatchMailer(BaseMailer):
                 "Файлы для сборки заказов отсутствуют.\n"
             )
 
-        dispatch_id = self.dispatch_files[0].get("dispatch_id")
 
         label_name = None
         warehouse_name = None
@@ -48,8 +53,8 @@ class DispatchMailer(BaseMailer):
             "Во вложении файлы для сборки заказов.",
         ]
 
-        if dispatch_id:
-            lines.append(f"Идентификатор отправки: {dispatch_id}")
+        if self.dispatch_id:
+            lines.append(f"Идентификатор отправки: {self.dispatch_id}")
 
         lines.append("")
 
