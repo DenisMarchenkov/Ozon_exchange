@@ -24,7 +24,7 @@ class DispatchMailer(BaseMailer):
         count = len(self.processing_orders)
         subject = f"Заказы к сбору ({count} шт.)"
         if self.dispatch_id:
-            subject += f" [{self.suffix_for_subject}]"
+            subject += f" --- {self.suffix_for_subject}"
         return subject
 
     # -----------------------------------------------
