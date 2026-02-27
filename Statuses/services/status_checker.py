@@ -37,9 +37,13 @@ class StatusChecker:
 
         # 4️⃣ Отправляем уведомление, если были изменения
         if self.status_changes:
-            logger.info("Отправка уведомления об изменении статусов...")
+            logger.info("Отправка уведомления об изменении статусов (%s изменений)...", len(self.status_changes))
             mailer = StatusMailer(self.status_changes)
             await asyncio.to_thread(mailer.send)
+        else:
+            logger.info("Изменений статусов не обнаружено, уведомление не требуется.")
+
+        logger.info("Проверка завершена. Обработано заказов: %s. Найдено изменений: %s.", len(active_postings), len(self.status_changes))
 
     async def _process_single_posting(self, session: aiohttp.ClientSession, posting: dict):
         posting_number = posting["posting_number"]
@@ -80,5 +84,6 @@ class StatusChecker:
                 "old_internal_status": internal_status,
                 "new_internal_status": new_internal_status,
             })
-
-        logger.info("[%s] Синхронизирован статус Ozon: %s", posting_number, new_marketplace_status)
+            logger.info("[%s] Обнаружено изменение статуса: %s -> %s", posting_number, old_marketplace_status, new_marketplace_status)
+        else:
+            logger.info("[%s] Статус не изменился (%s)", posting_number, new_marketplace_status)

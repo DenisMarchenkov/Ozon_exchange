@@ -33,10 +33,10 @@ def test_status_checker_run_success():
             # Verify update calls
             assert mock_update.call_count == 2
             mock_update.assert_any_call(
-                db, 1, ozon_status="delivering", ozon_cancel_reason=None
+                db, 1, marketplace_status="delivering", marketplace_cancel_reason=None
             )
             mock_update.assert_any_call(
-                db, 2, ozon_status="cancelled", ozon_cancel_reason="customer_cancelled"
+                db, 2, marketplace_status="cancelled", marketplace_cancel_reason="customer_cancelled"
             )
     
     asyncio.run(_test())
