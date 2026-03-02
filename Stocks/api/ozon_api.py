@@ -55,3 +55,44 @@ def get_warehouse_id(api_token: str, client_id: str) -> Optional[Dict[str, Any]]
     response = send_request_with_retries(url=url, headers=headers, method="POST")
     return response
 
+
+
+def get_sku_from_ozon(api_token: str, client_id: str):
+    url = "https://api-seller.ozon.ru/v3/product/list"
+
+    headers = {
+        "Api-Key": api_token,
+        "Client-Id": client_id,
+        "Content-Type": "application/json"
+    }
+
+    all_items = []
+    last_id = ""
+
+    while True:
+        body = {
+            "filter": {
+                "visibility": "ALL"
+            },
+            "last_id": last_id,
+            "limit": 1000
+        }
+
+        response = send_request_with_retries(
+            url=url,
+            headers=headers,
+            method="POST",
+            body=body
+        )
+
+        items = response["result"]["items"]
+        last_id = response["result"]["last_id"]
+
+        all_items.extend(items)
+
+        # если last_id пустой — значит это последняя страница
+        if not last_id:
+            break
+
+    return all_items
+

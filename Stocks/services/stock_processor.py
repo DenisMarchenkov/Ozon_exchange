@@ -14,8 +14,8 @@ def prepare_batches(offers, batch_size=90):
         batch_json = {
             "stocks": [
                 {
-                    "offer_id": offer["offerId"],  # Значение артикулов
-                    "stock": offer["qua"],
+                    "offer_id": offer["offer_id"],  # Значение артикулов
+                    "stock": offer["stock"],
                     "warehouse_id": WAREHOUSE_ID
                 }
                 for offer in batch  # Генерация списка "skus"
