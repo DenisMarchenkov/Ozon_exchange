@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 from Common.logger import get_logger
+from Common.settings import RECIPIENT_STOCK, RECIPIENT_MANAGERS
 from Statuses.db_statuses.statuses_repository import get_active_postings, update_ozon_info, set_check_error
 from Statuses.api.ozon_client import OzonClient
 from Statuses.services.mailers.status_mailer import StatusMailer
@@ -38,7 +39,12 @@ class StatusChecker:
         # 4️⃣ Отправляем уведомление, если были изменения
         if self.status_changes:
             logger.info("Отправка уведомления об изменении статусов (%s изменений)...", len(self.status_changes))
-            mailer = StatusMailer(self.status_changes)
+
+            has_cancelled = any(c["new_status"] == "cancelled" for c in self.status_changes)
+            recipients = RECIPIENT_MANAGERS
+            if has_cancelled:
+                recipients = RECIPIENT_MANAGERS + RECIPIENT_STOCK
+            mailer = StatusMailer(self.status_changes, to=recipients)
             await asyncio.to_thread(mailer.send)
         else:
             logger.info("Изменений статусов не обнаружено, уведомление не требуется.")

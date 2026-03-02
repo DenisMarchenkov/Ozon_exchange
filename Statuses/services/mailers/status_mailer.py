@@ -46,6 +46,9 @@ class StatusMailer(BaseMailer):
         super().__init__(*args, **kwargs)
         self.changes = changes
 
+    def has_cancelled_orders(self) -> bool:
+        return any(c["new_status"] == "cancelled" for c in self.changes)
+
     def build_subject_core(self) -> str:
         has_cancelled = any(c["new_status"] == "cancelled" for c in self.changes)
         prefix = "⚠ ОБНАРУЖЕНЫ ОТМЕНЕННЫЕ ЗАКАЗЫ | " if has_cancelled else ""

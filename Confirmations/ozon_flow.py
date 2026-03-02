@@ -1,5 +1,6 @@
 import time
 
+from Common.settings import RECIPIENT_MANAGERS
 from Common.time import now_iso
 from Common.logger import get_logger
 from Confirmations.api.exemplar_status.posting_filters import filter_postings_with_gtd_absent, \
@@ -97,7 +98,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
         # ============================================================
         update_gtd_data = confirmations_repo.get_by_status("is_gtd_absent")
         if update_gtd_data:
-            mailer = GTDAutoUpdateMailer(update_gtd_data)
+            mailer = GTDAutoUpdateMailer(update_gtd_data, to=RECIPIENT_MANAGERS)
             mailer.send()
 
         update_marking_data = confirmations_repo.get_by_status("is_marking_absent")

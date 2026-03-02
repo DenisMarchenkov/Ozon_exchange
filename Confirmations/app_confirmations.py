@@ -4,7 +4,7 @@ from Common.db.database import Database
 from Common.db.init_db import init_confirmations_schema, init_dispatch_schema
 from Common.file_policy import FilePolicy
 from Common.logger import get_logger
-from Common.settings import DB_PATH
+from Common.settings import DB_PATH, RECIPIENT_MANAGERS, RECIPIENT_STOCK
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
 from Confirmations.other_flow import run_other_flow
@@ -86,7 +86,7 @@ def main():
     if refused_items:
         logger.info("Есть отказанные позиции")
 
-        mailer = ShortageMailer(shortage_rows=refused_items)
+        mailer = ShortageMailer(shortage_rows=refused_items, to=RECIPIENT_MANAGERS)
 
         try:
             mailer.send()
@@ -169,7 +169,8 @@ def main():
             if not dispatch_files:
                 raise RuntimeError("Нет файлов для отправки")
 
-            mailer = DispatchMailer(dispatch_files, processing_orders)
+            recipients = RECIPIENT_MANAGERS + RECIPIENT_STOCK
+            mailer = DispatchMailer(dispatch_files, processing_orders, to=recipients)
             mailer.send()
 
             dispatch_repo.update_status(d_id, "SHIPPED_TO_STOCK")
@@ -185,7 +186,7 @@ def main():
     remaining_errors = confirmations_repo.get_by_status("error")
     if remaining_errors:
         logger.warning("После обмена данными стались заказы со статусом [error]")
-        mailer = ErrorMailer(error_rows=remaining_errors)
+        mailer = ErrorMailer(error_rows=remaining_errors, to=RECIPIENT_MANAGERS)
         mailer.send()
 
     logger.info("=== Проверка подтверждений завершена ===")
