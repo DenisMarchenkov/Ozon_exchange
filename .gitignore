@@ -24,6 +24,8 @@ Archive/
 *.xlsx
 *.xls
 pytest.ini
+*.md
+
 #настройки
 Confirmations/settings_app/settings_confirmations.py
 Orders/settings_app/settings_orders.py

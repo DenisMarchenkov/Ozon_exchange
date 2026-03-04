@@ -96,9 +96,9 @@ def get_sku_from_ozon():
     return all_items
 
 
-def set_update_timer_min_price(prod_ids, batch_size=100):
+def update_promo_timer(prod_ids, batch_size=100):
     """
-    Запускает обновление таймера минимальной цены для товаров Ozon партиями.
+    Запускает обновление таймера промо-акций (актуальности цены) для товаров Ozon партиями.
     """
 
     url = "https://api-seller.ozon.ru/v1/product/action/timer/update"

@@ -25,22 +25,23 @@ def prepare_offers_data(file_products) -> list[dict]:
         df_products['Артикул'] = df_products['Артикул'].astype(str)
         df_products['Количество'] = df_products['Количество'].fillna(0).astype(int)
 
-        # Формируем список остатков
+        # Формируем список остатков (группируем по Артикулу для суммирования количества)
         logger.info("Формируем список остатков.")
+        
+        # Группируем и суммируем
+        df_grouped = df_products.groupby('Артикул', as_index=False)['Количество'].sum()
+        
         offers = []
-
-        for _, row in df_products.iterrows():
-            offer_id = row["Артикул"]
-            count = row["Количество"]
-
-            # logger.info("Товар: Артикул=%s, Количество=%d", offer_id, count)
+        for _, row in df_grouped.iterrows():
+            offer_id = str(row["Артикул"])
+            count = int(row["Количество"])
 
             offers.append({
                 "offerId": offer_id,
                 "qua": count,
             })
 
-        logger.info("Генерация списка остатков завершена.")
+        logger.info("Генерация списка остатков завершена. Уникальных товаров: %d", len(offers))
         return offers
 
     except Exception as e:
