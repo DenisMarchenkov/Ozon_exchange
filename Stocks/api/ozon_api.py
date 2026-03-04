@@ -3,20 +3,19 @@ import time
 from typing import Optional, Dict, Any
 from Stocks.services.stock_processor import prepare_batches
 from Common.http_utils import send_request_with_retries
-from Common.settings import CLIENT_ID
+from Common.settings import CLIENT_ID, API_TOKEN
 from Common.logger import get_logger
-logger = get_logger("Stocks")
+logger = get_logger(__name__)
 
-def update_stocks(api_token: str, offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
+def update_stocks(offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
     """
     Обновляет остатки на маркетплейс Ozon партиями.
-    :param api_token: API ключ
     :param offers: список товаров [{"offerId": str, "qua": int}, ...]
     :return: список ответов API по партиям
     """
     url = "https://api-seller.ozon.ru/v2/products/stocks"
     headers = {
-        'Api-Key': api_token,
+        'Api-Key': API_TOKEN,
         'Accept': 'application/json',
         'Client-Id': CLIENT_ID
     }
@@ -57,12 +56,12 @@ def get_warehouse_id(api_token: str, client_id: str) -> Optional[Dict[str, Any]]
 
 
 
-def get_sku_from_ozon(api_token: str, client_id: str):
+def get_sku_from_ozon():
     url = "https://api-seller.ozon.ru/v3/product/list"
 
     headers = {
-        "Api-Key": api_token,
-        "Client-Id": client_id,
+        "Api-Key": API_TOKEN,
+        "Client-Id": CLIENT_ID,
         "Content-Type": "application/json"
     }
 
@@ -96,3 +95,41 @@ def get_sku_from_ozon(api_token: str, client_id: str):
 
     return all_items
 
+
+def set_update_timer_min_price(prod_ids, batch_size=100):
+    """
+    Запускает обновление таймера минимальной цены для товаров Ozon партиями.
+    """
+
+    url = "https://api-seller.ozon.ru/v1/product/action/timer/update"
+
+    headers = {
+        "Api-Key": API_TOKEN,
+        "Client-Id": CLIENT_ID,
+        "Content-Type": "application/json"
+    }
+
+    responses = []
+
+    # разбиваем на партии
+    for i in range(0, len(prod_ids), batch_size):
+        batch = prod_ids[i:i + batch_size]
+
+        body = {
+            "product_ids": batch
+        }
+
+        response = send_request_with_retries(
+            url=url,
+            headers=headers,
+            method="POST",
+            body=body
+        )
+
+        responses.append(response)
+
+        logger.info(f"Отправлена партия {i//batch_size + 1}, товаров: {len(batch)}")
+
+        time.sleep(1)  # чтобы не ловить rate limit
+
+    return responses

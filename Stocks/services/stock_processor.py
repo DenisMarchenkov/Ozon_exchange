@@ -24,3 +24,7 @@ def prepare_batches(offers, batch_size=90):
         batches.append(batch_json)
 
     return batches
+
+def chunk_list(lst, chunk_size):
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i:i + chunk_size]

@@ -1,5 +1,5 @@
 from Stocks.readers.excel_reader import prepare_offers_data
-from Stocks.api.ozon_api import update_stocks, get_sku_from_ozon
+from Stocks.api.ozon_api import update_stocks, get_sku_from_ozon, set_update_timer_min_price
 from Common.file_utils import copy_file_with_timestamp
 from Common.settings import API_TOKEN, SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER, CLIENT_ID
 from Common.logger import get_logger
@@ -16,7 +16,7 @@ def start_exchange_stock_ozon(file):
     offers = prepare_offers_data(file)
 
     # --- 2. Получаем товары из Ozon ---
-    sku_ozon = get_sku_from_ozon(API_TOKEN, CLIENT_ID)
+    sku_ozon = get_sku_from_ozon()
 
     # --- 3. Создаём индексы для быстрого поиска ---
     offers_index = {o["offerId"]: o for o in offers}      # offerId -> offer
@@ -31,7 +31,7 @@ def start_exchange_stock_ozon(file):
         if offer_id in ozon_index:
             stocks_to_update.append({
                 "offer_id": offer_id,
-                #"product_id": ozon_index[offer_id]["product_id"],
+                "product_id": ozon_index[offer_id]["product_id"],
                 "stock": offer["qua"]
             })
 
@@ -40,7 +40,7 @@ def start_exchange_stock_ozon(file):
         if offer_id not in offers_index:
             stocks_to_update.append({
                 "offer_id": offer_id,
-                #"product_id": sku["product_id"],
+                "product_id": sku["product_id"],
                 "stock": 0
             })
 
@@ -51,13 +51,31 @@ def start_exchange_stock_ozon(file):
 
 
     # --- 6. Отправка в Ozon ---
-    update_stocks(API_TOKEN, stocks_to_update)
+    update_stocks(stocks_to_update)
 
     logger.info("=== Обмен товарными остатками завершен ===")
+    return stocks_to_update
+
+
+def start_update_timer_min_price(data):
+    """
+    Функция обновления таймера актуальности минимальной цены
+    """
+    logger.info("=== Запуск обновления таймера минимальной цены ===")
+
+    # --- 1. Подготовка данных ---
+    product_ids = [item["product_id"] for item in data]
+
+    # --- 2. Обновление таймера ---
+    set_update_timer_min_price(product_ids, batch_size=500)
+
+    logger.info("=== Обновление таймера минимальной цены завершено ===")
 
 def main():
     file_supplier = copy_file_with_timestamp(SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER)
-    start_exchange_stock_ozon(file_supplier)
+    stocks_to_update = start_exchange_stock_ozon(file_supplier)
+    start_update_timer_min_price(stocks_to_update)
+
 
 if __name__ == "__main__":
     main()
