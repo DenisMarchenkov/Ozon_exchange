@@ -2,7 +2,7 @@ from Stocks.readers.excel_reader import prepare_offers_data
 from Stocks.api.ozon_api import update_stocks, get_sku_from_ozon, update_promo_timer
 from Stocks.db_stocks.stocks_repository import StocksRepository
 from Common.file_utils import copy_file_with_timestamp
-from Common.settings import API_TOKEN, SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER, CLIENT_ID
+from Common.settings import SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER
 from Common.logger import get_logger
 logger = get_logger(__name__)
 

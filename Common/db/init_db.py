@@ -85,7 +85,10 @@ def init_confirmations_schema(db):
                            ordered_at TEXT,
                            shipped_at TEXT,
                            created_at TEXT NOT NULL,
-                           updated_at TEXT NOT NULL
+                           updated_at TEXT NOT NULL,
+                           FOREIGN KEY (dispatch_id) 
+                               REFERENCES dispatch(id) 
+                               ON DELETE SET NULL
                        )
                    """)
 

@@ -33,3 +33,6 @@ Prices/settings_app/price change log.xlsx
 Prices/settings_app/settings_prices.py
 Statuses/settings_app/settings_statuses.py
 Common/settings.py
+
+# Миграции
+Common/db/migrate_confirmations_dispatch_fk.py
