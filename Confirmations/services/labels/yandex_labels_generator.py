@@ -4,6 +4,7 @@ from typing import List, Optional
 from dataclasses import dataclass
 
 from Confirmations.api.yandex_labels_api import YandexLabelsAPI
+from Common.time import now_iso
 from Confirmations.services.labels.labels_file_manager import LabelsFileManager
 
 
@@ -40,20 +41,28 @@ class YandexLabelsGenerator:
             return LabelDownloadResult(file_path=None, failed=[])
 
         order_ids = list({item["posting_number"] for item in items})
+        
+        self.confirmations_repo.update_stickers_status(order_ids, "creating", now_iso())
 
         report_id = self.api.create_report(order_ids)
         if not report_id:
+            self.confirmations_repo.update_stickers_status(order_ids, "error", now_iso())
             return LabelDownloadResult(file_path=None, failed=order_ids)
+
+        self.confirmations_repo.update_stickers_status(order_ids, "in_progress", now_iso())
 
         file_url = self._wait_until_ready(report_id)
         if not file_url:
+            self.confirmations_repo.update_stickers_status(order_ids, "error", now_iso())
             return LabelDownloadResult(file_path=None, failed=order_ids)
 
         try:
             file_path = self.files.save_labels(file_url, custom_headers=self.api.headers)
+            self.confirmations_repo.update_stickers_status(order_ids, "ready", now_iso())
             return LabelDownloadResult(file_path=file_path, failed=[])
         except Exception as e:
             self.logger.error(f"Ошибка сохранения ярлыков Yandex: {e}")
+            self.confirmations_repo.update_stickers_status(order_ids, "error", now_iso())
             return LabelDownloadResult(file_path=None, failed=order_ids)
 
     # ============================================================

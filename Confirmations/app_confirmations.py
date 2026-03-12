@@ -125,11 +125,11 @@ def main():
     # ============================================================
     # Проверяем, есть ли заказы Ozon, требующие обработки (включая зависшие в awaiting_delivery)
     has_ozon_pending = False
-    
+
     # 1. Новые подтверждения
     if ozon_confirmations:
         has_ozon_pending = True
-    
+
     # 2. Зависшие в ожидании отгрузки (например, если наклейки не сгенерировались)
     if not has_ozon_pending:
         # Проверяем awaiting_delivery только если нет новых, чтобы не делать лишних запросов
@@ -150,8 +150,20 @@ def main():
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
         run_other_flow(other_confirmations, confirmations_repo, dispatch_repo)
 
+    has_yandex_pending = False
+
     if yandex_confirmations:
-        logger.info(f"запуск сценария для {len(yandex_confirmations)} заказов ЯНДЕКС")
+        has_yandex_pending = True
+
+    if not has_yandex_pending:
+        pending_delivery_ya = confirmations_repo.get_by_status("awaiting_delivery")
+        yandex_pending = [c for c in pending_delivery_ya if c["division_id"] in YANDEX_DIVISION]
+        if yandex_pending:
+            logger.info(f"Найдены {len(yandex_pending)} заказов Yandex в ожидании отгрузки. Запускаем flow.")
+            has_yandex_pending = True
+
+    if has_yandex_pending:
+        logger.info(f"Запуск сценария YANDEX (новых: {len(yandex_confirmations)})")
         run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo)
 
 

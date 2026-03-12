@@ -19,9 +19,14 @@ class YandexLabelsAPI:
 
     def __init__(self, format_pdf: str = "A7"):
         self.business_id = int(YANDEX_BUSINESS_ID) if str(YANDEX_BUSINESS_ID).isdigit() else YANDEX_BUSINESS_ID
+        # self.headers = {
+        #     "Authorization": f"Bearer {YANDEX_API_TOKEN}",
+        #     "Content-Type": "application/json",
+        # }
         self.headers = {
-            "Authorization": f"Bearer {YANDEX_API_TOKEN}",
-            "Content-Type": "application/json"
+            "Api-Key": YANDEX_API_TOKEN,
+            'Accept': 'application/json',
+            'X-Market-Integration': 'OrderGuard_NEW'
         }
         self.format_pdf = format_pdf
 
@@ -29,9 +34,20 @@ class YandexLabelsAPI:
     # Создание отчета (задачи)
     # -------------------------------------------------
     def create_report(self, order_ids: List[str]) -> str | None:
+        int_order_ids = []
+        for oid in order_ids:
+            try:
+                int_order_ids.append(int(oid))
+            except ValueError:
+                logger.error(f"Невозможно преобразовать order_id в int: {oid}")
+                continue
+                
+        if not int_order_ids:
+            return None
+
         payload = {
             "businessId": self.business_id,
-            "orderIds": order_ids,
+            "orderIds": int_order_ids,
             "sortingType": "SORT_BY_GIVEN_ORDER",
         }
 
@@ -46,6 +62,10 @@ class YandexLabelsAPI:
         if not response:
             logger.error("Yandex не вернул response при создании отчета наклеек")
             return None
+
+        if not isinstance(response, dict):
+             logger.error(f"Неожиданный формат ответа Yandex (ожидался dict, получено {type(response)}): {response}")
+             return None
 
         report_id = response.get("result", {}).get("reportId")
         if not report_id:

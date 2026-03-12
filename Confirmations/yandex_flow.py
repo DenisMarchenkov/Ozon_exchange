@@ -14,17 +14,29 @@ def run_yandex_flow(
     confirmations_repo,
     dispatch_repo,
 ):
-    if not yandex_confirmations:
-        logger.info("Нет подтверждений для Yandex")
-        return
+    if yandex_confirmations:
+        from Confirmations.api.yandex_confirmations_api import YandexConfirmationsAPI
+        yandex_api = YandexConfirmationsAPI()
 
-    # ============================================================
-    # 0. Перевод подтвержденных заказов в "ожидает отгрузки"
-    # ============================================================
-    for confirmation in yandex_confirmations:
-        if confirmation.get("status") == "confirmed":
-            logger.info(f"Yandex Одобрено для ship (автоматически): {confirmation.get('posting_number')}")
-            confirmations_repo.update_status(confirmation.get("posting_number"), "awaiting_delivery")
+        # ============================================================
+        # 0. Перевод подтвержденных заказов в "ожидает отгрузки"
+        # ============================================================
+        orders_to_update = []
+        for confirmation in yandex_confirmations:
+            if confirmation.get("status") == "confirmed":
+                orders_to_update.append(confirmation.get("posting_number"))
+
+        if orders_to_update:
+            logger.info(f"Обнаружено {len(orders_to_update)} заказов Yandex для перевода в READY_TO_SHIP.")
+            success = yandex_api.update_order_statuses(orders_to_update, "PROCESSING", "READY_TO_SHIP")
+            if success:
+                for posting_number in orders_to_update:
+                    logger.info(f"Yandex Одобрено для ship: {posting_number}")
+                    confirmations_repo.update_status(posting_number, "awaiting_delivery")
+            else:
+                logger.error("Не удалось обновить статусы заказов в Yandex API. Локальные статусы не изменены.")
+    else:
+        logger.info("Нет НОВЫХ подтверждений для Yandex (пропуск обновления статусов)")
 
     # ============================================================
     # 1. Формируем dispatch_id

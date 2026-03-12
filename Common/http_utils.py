@@ -82,6 +82,16 @@ def send_request_with_retries(
                         get_fake_data("fake_response_get_exemplar_status.json")
                     )
 
+                elif "reports/documents/labels/generate" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        {"status": "OK", "result": {"reportId": "fake_yandex_report_id_123"}}
+                    )
+
+                elif "reports/info" in url:
+                    response: Union[Response, FakeResponse] = FakeResponse.ok(
+                        {"status": "OK", "result": {"status": "DONE", "file": "https://fake.yandex.url/labels.pdf"}}
+                    )
+
                 else:
                     response = FakeResponse.ok({"result": "test_ok"})
 
