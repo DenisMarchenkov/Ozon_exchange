@@ -33,7 +33,8 @@ class StocksRepository:
                     total_offers_in_file INTEGER,
                     total_offers_in_ozon INTEGER,
                     items_updated INTEGER,
-                    status TEXT NOT NULL
+                    status TEXT NOT NULL,
+                    marketplace TEXT DEFAULT 'OZON'
                 )
             """)
             
@@ -83,16 +84,16 @@ class StocksRepository:
     # ---------------------------------------------------------
     # Логирование обновления остатков
     # ---------------------------------------------------------
-    def create_stock_update_session(self, total_file: int, total_ozon: int, status: str = "STARTED") -> int:
+    def create_stock_update_session(self, total_file: int, total_ozon: int, status: str = "STARTED", marketplace: str = "OZON") -> int:
         """Создает запись о начале сеанса обновления остатков."""
         try:
             with self.db.connect() as conn:
                 cur = conn.cursor()
                 cur.execute("""
                     INSERT INTO stock_update_logs
-                    (run_timestamp, total_offers_in_file, total_offers_in_ozon, items_updated, status)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (self._now(), total_file, total_ozon, 0, status))
+                    (run_timestamp, total_offers_in_file, total_offers_in_ozon, items_updated, status, marketplace)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (self._now(), total_file, total_ozon, 0, status, marketplace))
                 conn.commit()
                 return cur.lastrowid
         except sqlite3.Error as e:
@@ -137,6 +138,32 @@ class StocksRepository:
                 conn.commit()
         except sqlite3.Error as e:
             logger.error(f"Ошибка БД при сохранении истории остатков (Log ID {log_id}): {e}")
+
+    def save_yandex_stock_history_bulk(self, log_id: int, stocks_to_update: List[Dict[str, Any]]):
+        """Массово сохраняет историю отправленных остатков Яндекса."""
+        if log_id <= 0 or not stocks_to_update:
+            return
+
+        today = self._today()
+        # Для яндекса структура: {"sku": "...", "items": [{"count": int}]}
+        # product_id в Яндексе нет, поэтому передаем 0
+        records = [
+            (log_id, today, item["sku"], 0, item["items"][0]["count"])
+            for item in stocks_to_update
+            if item.get("items") and len(item["items"]) > 0
+        ]
+
+        try:
+            with self.db.connect() as conn:
+                cur = conn.cursor()
+                cur.executemany("""
+                    INSERT INTO stock_history
+                    (update_log_id, date, offer_id, product_id, stock_value)
+                    VALUES (?, ?, ?, ?, ?)
+                """, records)
+                conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Ошибка БД при сохранении истории остатков Yandex (Log ID {log_id}): {e}")
 
     # ---------------------------------------------------------
     # Логирование таймера промо-акций (Promo)
