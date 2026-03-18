@@ -144,11 +144,17 @@ def main():
 
     if has_ozon_pending:
         logger.info(f"Запуск сценария OZON (новых: {len(ozon_confirmations)})")
-        run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db)
+        try:
+            run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db)
+        except Exception as e:
+            logger.exception(f"Критическая ошибка в сценарии OZON: {e}")
 
     if other_confirmations:
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
-        run_other_flow(other_confirmations, confirmations_repo, dispatch_repo)
+        try:
+            run_other_flow(other_confirmations, confirmations_repo, dispatch_repo)
+        except Exception as e:
+            logger.exception(f"Критическая ошибка в сценарии OTHER: {e}")
 
     has_yandex_pending = False
 
@@ -164,7 +170,10 @@ def main():
 
     if has_yandex_pending:
         logger.info(f"Запуск сценария YANDEX (новых: {len(yandex_confirmations)})")
-        run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo)
+        try:
+            run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo)
+        except Exception as e:
+            logger.exception(f"Критическая ошибка в сценарии YANDEX: {e}")
 
 
     # ============================================================
