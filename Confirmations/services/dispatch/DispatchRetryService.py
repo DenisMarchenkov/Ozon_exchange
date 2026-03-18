@@ -18,6 +18,14 @@ class DispatchRetryService:
 
         for dispatch_id in error_dispatches:
             d_id = dispatch_id["id"]
+
+            # Проверяем, есть ли у отгрузки заказы
+            postings = self.confirmations_repo.get_postings_by_dispatch(d_id)
+            if not postings:
+                logger.warning(f"Dispatch {d_id} - нет закрепленных заказов. Помечаю со статусом CANCELLED.")
+                self.dispatch_repo.update_status(d_id, "CANCELLED")
+                continue
+
             logger.info(f"Retry {d_id}")
             self.dispatch_repo.update_status(d_id, "RETRYING")
 
