@@ -4,7 +4,7 @@ from Common.db.database import Database
 from Common.db.init_db import init_confirmations_schema, init_dispatch_schema
 from Common.file_policy import FilePolicy
 from Common.logger import get_logger
-from Common.settings import DB_PATH, RECIPIENT_MANAGERS, RECIPIENT_STOCK
+from Common.settings import DB_PATH, RECIPIENT_MANAGERS, RECIPIENT_STOCK, RECIPIENT_ADMIN
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
 from Confirmations.other_flow import run_other_flow
@@ -207,7 +207,7 @@ def main():
     remaining_errors = confirmations_repo.get_by_status("error")
     if remaining_errors:
         logger.warning("После обмена данными стались заказы со статусом [error]")
-        mailer = ErrorMailer(error_rows=remaining_errors, to=RECIPIENT_MANAGERS)
+        mailer = ErrorMailer(error_rows=remaining_errors, to=RECIPIENT_ADMIN)
         mailer.send()
 
     logger.info("=== Проверка подтверждений завершена ===")
