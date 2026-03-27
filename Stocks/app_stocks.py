@@ -10,12 +10,6 @@ from Stocks.settings_app.settings_stocks import ENABLE_OZON, ENABLE_YANDEX, ENAB
 logger = get_logger(__name__)
 repo = StocksRepository()
 
-# --- Флаги управления ---
-# Позволяют быстро включать/выключать маркетплейсы и промо без изменения логики кода
-# ENABLE_OZON = True
-# ENABLE_YANDEX = False
-# ENABLE_PROMO = True
-
 
 def start_exchange_stock(file):
     """
