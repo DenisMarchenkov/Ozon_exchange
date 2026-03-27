@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from Stocks.api.yandex_api import get_sku_from_yandex, update_stocks_yandex
 from Stocks.readers.excel_reader import prepare_offers_data
 from Stocks.api.ozon_api import update_stocks, get_sku_from_ozon, update_promo_timer
@@ -7,9 +5,16 @@ from Stocks.db_stocks.stocks_repository import StocksRepository
 from Common.file_utils import copy_file_with_timestamp
 from Common.settings import SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER
 from Common.logger import get_logger
-logger = get_logger(__name__)
+from Stocks.settings_app.settings_stocks import ENABLE_OZON, ENABLE_YANDEX, ENABLE_PROMO_TIMER
 
+logger = get_logger(__name__)
 repo = StocksRepository()
+
+# --- Флаги управления ---
+# Позволяют быстро включать/выключать маркетплейсы и промо без изменения логики кода
+# ENABLE_OZON = True
+# ENABLE_YANDEX = False
+# ENABLE_PROMO = True
 
 
 def start_exchange_stock(file):
@@ -19,134 +24,177 @@ def start_exchange_stock(file):
     logger.info("=== Запуск обмена товарными остатками ===")
 
     # --- 1. Подготовка прайса ---
+    # Читаем файл поставщика и приводим к единому формату
     offers = prepare_offers_data(file)
 
-    # --- 2. Получаем товары из Ozon ---
-    sku_ozon = get_sku_from_ozon()
-    sku_yandex = get_sku_from_yandex()
+    # --- 2. Получаем товары из маркетплейсов ---
+    # Если маркет отключен — просто получаем пустой список
+    sku_ozon = get_sku_from_ozon() if ENABLE_OZON else []
+    sku_yandex = get_sku_from_yandex() if ENABLE_YANDEX else []
 
     # --- 3. Создаём индексы для быстрого поиска ---
-    offers_index = {o["offerId"]: o for o in offers}      # offerId -> offer
-    ozon_index = {o["offer_id"]: o for o in sku_ozon}     # offer_id -> sku
-    yandex_index = {o["offer"]["offerId"]: o for o in sku_yandex}
-    #print(yandex_index)
+    # Это сильно ускоряет работу при больших объемах
+    offers_index = {o["offerId"]: o for o in offers}              # offerId -> offer
+    ozon_index = {o["offer_id"]: o for o in sku_ozon}             # offer_id -> sku
+    yandex_index = {o["offer"]["offerId"]: o for o in sku_yandex}  # offerId -> sku
 
-    # --- 4. Генерируем список для загрузки ---
-    stocks_to_update = []
-    stocks_to_update_yandex = []
-    
-    # Guard check: защита от пустого прайс-листа (предотвращение обнуления всего склада)
+    # Guard check: защита от пустого прайс-листа
+    # Если файл пуст — прерываем, чтобы не обнулить весь склад
     if not offers_index:
-        logger.critical("Внимание! В файле не найдено товаров или он пуст! Прерываем процесс для защиты от обнуления остатков.")
+        logger.critical("Пустой файл! Прерываем процесс.")
         return []
 
-    # 4a. Товары, которые есть и в Ozon, и в прайсе → обновляем остаток
-    for offer_id, offer in offers_index.items():
-        if offer_id in ozon_index:
-            stocks_to_update.append({
-                "offer_id": offer_id,
-                "product_id": ozon_index[offer_id]["product_id"],
-                "stock": offer["qua"]
-            })
+    # --- 4. Генерируем списки для обновления ---
+    stocks_to_update = []
+    stocks_to_update_yandex = []
 
-    # 4b. Товары, которые есть в Ozon, но нет в прайсе → ставим 0
-    for offer_id, sku in ozon_index.items():
-        if offer_id not in offers_index:
-            stocks_to_update.append({
-                "offer_id": offer_id,
-                "product_id": sku["product_id"],
-                "stock": 0
-            })
+    # =========================
+    # --- 4a. OZON логика ---
+    # =========================
+    if ENABLE_OZON:
 
-    # 4c. Товары, которые есть и в Yandex, и в прайсе → обновляем остаток
-    for offer_id, offer in offers_index.items():
-        if offer_id in yandex_index:
-            stocks_to_update_yandex.append({
-                "sku": offer_id,
-                "items": [{
-                    "count": offer["qua"]
-                }]
-            })
-    # 4d. Товары, которые есть в Yandex, но нет в прайсе → ставим 0
-    for offer_id, item in yandex_index.items():
-        if offer_id not in offers_index:
-            stocks_to_update_yandex.append({
-                "sku": offer_id,
-                "items": [{
-                    "count": 0
-                }]
-            })
+        # Товары, которые есть и в прайсе, и в Ozon → обновляем остатки
+        for offer_id, offer in offers_index.items():
+            if offer_id in ozon_index:
+                stocks_to_update.append({
+                    "offer_id": offer_id,
+                    "product_id": ozon_index[offer_id]["product_id"],
+                    "stock": offer["qua"]
+                })
 
-    # --- 5. Логируем для проверки ---
+        # Товары, которые есть в Ozon, но отсутствуют в прайсе → ставим 0
+        for offer_id, sku in ozon_index.items():
+            if offer_id not in offers_index:
+                stocks_to_update.append({
+                    "offer_id": offer_id,
+                    "product_id": sku["product_id"],
+                    "stock": 0
+                })
+
+    # =========================
+    # --- 4b. YANDEX логика ---
+    # =========================
+    if ENABLE_YANDEX:
+
+        # Товары, которые есть и в прайсе, и в Yandex → обновляем остатки
+        for offer_id, offer in offers_index.items():
+            if offer_id in yandex_index:
+                stocks_to_update_yandex.append({
+                    "sku": offer_id,
+                    "items": [{"count": offer["qua"]}]
+                })
+
+        # Товары, которые есть в Yandex, но отсутствуют в прайсе → ставим 0
+        for offer_id in yandex_index:
+            if offer_id not in offers_index:
+                stocks_to_update_yandex.append({
+                    "sku": offer_id,
+                    "items": [{"count": 0}]
+                })
+
+    # --- 5. Логирование ---
     logger.info(f"Всего товаров из прайса: {len(offers_index)}")
+    logger.info(f"Всего товаров в Ozon: {len(ozon_index)} | Товаров к обновлению: {len(stocks_to_update)}")
+    logger.info(f"Всего товаров в Yandex: {len(yandex_index)} | Товаров к обновлению: {len(stocks_to_update_yandex)}")
 
-    logger.info(f"Всего товаров в Ozon: {len(ozon_index)}")
-    logger.info(f"Товаров для обновления остатков Ozon: {len(stocks_to_update)}")
+    # =========================
+    # --- 6. Отправка в OZON ---
+    # =========================
+    if ENABLE_OZON:
+        log_id = repo.create_stock_update_session(
+            total_file=len(offers_index),
+            total_ozon=len(ozon_index),
+            marketplace="OZON"
+        )
+        try:
+            # Сохраняем историю перед отправкой
+            repo.save_stock_history_bulk(log_id, stocks_to_update)
 
-    logger.info(f"Всего товаров в Yandex: {len(yandex_index)}")
-    logger.info(f"Товаров для обновления остатков Yandex: {len(stocks_to_update_yandex)}")
+            # Отправляем остатки
+            update_stocks(stocks_to_update)
 
-    # --- 6. Запись в БД и Отправка в Ozon ---
-    log_id_ozon = repo.create_stock_update_session(total_file=len(offers_index), total_ozon=len(ozon_index), marketplace="OZON")
-    try:
-        # Сохраняем историю в БД перед отправкой
-        repo.save_stock_history_bulk(log_id_ozon, stocks_to_update)
-        # Отправка в Маркетплейсы
-        update_stocks(stocks_to_update)
-        repo.finish_stock_update_session(log_id_ozon, items_updated=len(stocks_to_update), status="SUCCESS")
-    except Exception as e:
-        logger.error(f"Ошибка при обновлении остатков Ozon: {e}")
-        repo.finish_stock_update_session(log_id_ozon, items_updated=0, status=f"ERROR: {str(e)[:100]}")
+            # Завершаем сессию
+            repo.finish_stock_update_session(log_id, len(stocks_to_update), "SUCCESS")
+        except Exception as e:
+            logger.error(f"Ошибка Ozon: {e}")
+            repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
 
-    # --- 7. Запись в БД и Отправка в Yandex ---
-    log_id_yandex = repo.create_stock_update_session(total_file=len(offers_index), total_ozon=len(yandex_index), marketplace="YANDEX")
-    try:
-        repo.save_yandex_stock_history_bulk(log_id_yandex, stocks_to_update_yandex)
-        update_stocks_yandex(stocks_to_update_yandex)
-        repo.finish_stock_update_session(log_id_yandex, items_updated=len(stocks_to_update_yandex), status="SUCCESS")
-    except Exception as e:
-        logger.error(f"Ошибка при обновлении остатков Yandex: {e}")
-        repo.finish_stock_update_session(log_id_yandex, items_updated=0, status=f"ERROR: {str(e)[:100]}")
+    # =========================
+    # --- 7. Отправка в YANDEX ---
+    # =========================
+    if ENABLE_YANDEX:
+        log_id = repo.create_stock_update_session(
+            total_file=len(offers_index),
+            total_ozon=len(yandex_index),
+            marketplace="YANDEX"
+        )
+        try:
+            # Сохраняем историю
+            repo.save_yandex_stock_history_bulk(log_id, stocks_to_update_yandex)
 
-    logger.info("=== Обмен товарными остатками завершен ===")
+            # Отправляем остатки
+            update_stocks_yandex(stocks_to_update_yandex)
+
+            # Завершаем сессию
+            repo.finish_stock_update_session(log_id, len(stocks_to_update_yandex), "SUCCESS")
+        except Exception as e:
+            logger.error(f"Ошибка Yandex: {e}")
+            repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
+
+    logger.info("=== Завершено ===")
     return stocks_to_update
 
 
 def start_update_promo_timer(data):
     """
-    Функция обновления таймера актуальности участия в промо-акциях
+    Функция обновления таймера участия в промо-акциях
     """
-    logger.info("=== Запуск обновления таймера промо-акций ===")
 
-    # --- 1. Подготовка данных (убираем дубликаты product_id) ---
-    product_ids = list(set(item["product_id"] for item in data))
-    
-    if not product_ids:
-        logger.info("Нет товаров для обновления таймера.")
+    # Если промо отключено — сразу выходим
+    if not ENABLE_PROMO_TIMER:
+        logger.info("Промо отключено")
         return
 
-    # --- 2. Запись в БД и Обновление таймера ---
-    log_id = repo.create_promo_timer_session(total_items=len(product_ids))
-    
+    logger.info("=== Обновление промо  ===")
+
+    # Убираем дубликаты product_id
+    product_ids = list(set(item["product_id"] for item in data))
+
+    if not product_ids:
+        logger.info("Нет товаров")
+        return
+
+    # Создаем сессию логирования
+    log_id = repo.create_promo_timer_session(len(product_ids))
+
     try:
-        # Сохраняем историю в БД
+        # Сохраняем историю
         repo.save_promo_timer_history_bulk(log_id, product_ids)
-        
-        # Обновление таймера в Ozon
+
+        # Обновляем таймер в Ozon
         update_promo_timer(product_ids, batch_size=500)
-        
-        repo.finish_promo_timer_session(log_id, status="SUCCESS")
+
+        # Успешное завершение
+        repo.finish_promo_timer_session(log_id, "SUCCESS")
     except Exception as e:
-        logger.error(f"Ошибка при обновлении таймера промо: {e}")
-        repo.finish_promo_timer_session(log_id, status=f"ERROR: {str(e)[:100]}")
+        logger.error(f"Ошибка промо: {e}")
+        repo.finish_promo_timer_session(log_id, f"ERROR: {str(e)[:100]}")
 
-    logger.info("=== Обновление таймера промо-акций завершено ===")
-
+    logger.info("=== Промо завершено ===")
 
 
 def main():
+    """
+    Точка входа:
+    1. Копируем файл поставщика
+    2. Обновляем остатки
+    3. Обновляем промо
+    """
+
     file_supplier = copy_file_with_timestamp(SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER)
+
     stocks_to_update = start_exchange_stock(file_supplier)
+
     start_update_promo_timer(stocks_to_update)
 
 
