@@ -59,6 +59,7 @@ def start_exchange_stock(file):
         # Товары, которые есть в Ozon, но отсутствуют в прайсе → ставим 0
         for offer_id, sku in ozon_index.items():
             if offer_id not in offers_index:
+                logger.info(f"Товары, которые есть в Ozon, но отсутствуют в прайсе: offer_id: {offer_id} product_id: {sku['product_id']}")
                 stocks_to_update.append({
                     "offer_id": offer_id,
                     "product_id": sku["product_id"],
@@ -105,7 +106,8 @@ def start_exchange_stock(file):
             repo.save_stock_history_bulk(log_id, stocks_to_update)
 
             # Отправляем остатки
-            update_stocks(stocks_to_update)
+            response = update_stocks(stocks_to_update)
+            logger.info(response)
 
             # Завершаем сессию
             repo.finish_stock_update_session(log_id, len(stocks_to_update), "SUCCESS")

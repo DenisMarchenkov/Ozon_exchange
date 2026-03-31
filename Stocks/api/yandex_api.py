@@ -1,6 +1,4 @@
 import time
-from pprint import pprint
-
 import requests
 
 from typing import Optional, Dict, Any
@@ -87,7 +85,6 @@ def update_stocks_yandex(offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
 
     responses = []
     batches = prepare_batches_yandex(offers)
-    pprint(batches)
 
     logger.info(f"Начинаем обновление остатков: {len(offers)} товаров ({len(batches)} партий)")
 
