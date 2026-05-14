@@ -66,8 +66,8 @@ class StatusMailer(BaseMailer):
     # ==================== TEXT ====================
 
     def build_body(self) -> str:
-        if not self.changes:
-            return "Добрый день!\n\nИзменений статусов за этот период не зафиксировано.\n"
+        if not self.changes and not self.discrepancies:
+            return "Добрый день!\n\nИзменений статусов и рассинхронов за этот период не зафиксировано.\n"
 
         sorted_changes = sorted(self.changes, key=lambda x: x["new_status"])
         has_cancelled = any(c["new_status"] == "cancelled" for c in sorted_changes)
@@ -129,12 +129,12 @@ class StatusMailer(BaseMailer):
     # ==================== HTML ====================
 
     def build_body_html(self) -> str:
-        if not self.changes:
+        if not self.changes and not self.discrepancies:
             return """
             <html>
             <body style="font-family:Arial, sans-serif; font-size:14px;">
                 <p>Добрый день!</p>
-                <p>Изменений статусов за этот период не зафиксировано.</p>
+                <p>Изменений статусов и рассинхронов за этот период не зафиксировано.</p>
             </body>
             </html>
             """
