@@ -42,18 +42,26 @@ class StatusMailer(BaseMailer):
 
     # ----------------------------------------------------
 
-    def __init__(self, changes: List[Dict[str, str]], *args, **kwargs):
+    def __init__(self, changes: List[Dict[str, str]], discrepancies: List[Dict[str, str]] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.changes = changes
+        self.discrepancies = discrepancies or []
 
     def has_cancelled_orders(self) -> bool:
         return any(c["new_status"] == "cancelled" for c in self.changes)
 
     def build_subject_core(self) -> str:
         has_cancelled = any(c["new_status"] == "cancelled" for c in self.changes)
-        prefix = "⚠ ОБНАРУЖЕНЫ ОТМЕНЕННЫЕ ЗАКАЗЫ | " if has_cancelled else ""
+        has_discrepancy = len(self.discrepancies) > 0
 
-        return f"{prefix}Изменение статусов заказов ({len(self.changes)} шт.)"
+        prefix = ""
+        if has_cancelled:
+            prefix += "⚠ ОБНАРУЖЕНЫ ОТМЕНЕННЫЕ ЗАКАЗЫ | "
+        if has_discrepancy:
+            prefix += "⚠ ТРЕБУЕТСЯ ВНИМАНИЕ (РАССИНХРОН) | "
+
+        count = len(self.changes) + len(self.discrepancies)
+        return f"{prefix}Изменение статусов заказов ({count} шт.)"
 
     # ==================== TEXT ====================
 
@@ -87,6 +95,20 @@ class StatusMailer(BaseMailer):
                 f"{str(c.get('old_internal_status', '---')).upper():<20} | "
                 f"{str(c.get('new_internal_status', '---')).upper():<20}"
             )
+
+        # --- блок рассинхронов ---
+        if self.discrepancies:
+            lines.append("\n" + "!" * 80)
+            lines.append("!!! ВНИМАНИЕ: ОБНАРУЖЕН РАССИНХРОН СТАТУСОВ (ТРЕБУЕТСЯ РУЧНАЯ ПРОВЕРКА) !!!")
+            lines.append("!" * 80)
+            lines.append(f"{'Номер заказа':<25} | {'Внутренний статус':<25} | {'Статус OZON':<25}")
+            lines.append("-" * 80)
+            for d in self.discrepancies:
+                lines.append(
+                    f"{d['posting_number']:<25} | "
+                    f"{str(d['internal_status']).upper():<25} | "
+                    f"{str(d['marketplace_status']).upper():<25}"
+                )
 
         # --- справочник статусов (через константы) ---
         lines.append("\n" * 2)
@@ -123,10 +145,37 @@ class StatusMailer(BaseMailer):
         # --- основной заголовок и предупреждение ---
         warning = ""
         if has_cancelled:
-            warning = """
-            <p style="color:#b00020;font-weight:bold;">
+            warning += """
+            <p style="color:#b00020;font-weight:bold;font-size:16px;">
                 ⚠ ОБНАРУЖЕНЫ ОТМЕНЕННЫЕ ЗАКАЗЫ
             </p>
+            """
+        
+        if self.discrepancies:
+            rows_disc = []
+            for d in self.discrepancies:
+                rows_disc.append(f"""
+                <tr>
+                    <td style="border:1px solid #ccc;padding:6px;"><b>{d['posting_number']}</b></td>
+                    <td style="border:1px solid #ccc;padding:6px;color:#cc0000;text-align:center;">{str(d['internal_status']).upper()}</td>
+                    <td style="border:1px solid #ccc;padding:6px;text-align:center;">{str(d['marketplace_status']).upper()}</td>
+                </tr>
+                """)
+                
+            warning += f"""
+            <div style="background-color: #fff3f3; border: 2px solid #cc0000; padding: 15px; border-radius: 5px; margin-bottom: 25px;">
+                <h3 style="color: #cc0000; margin-top: 0; font-size:18px;">⚠ ТРЕБУЕТСЯ РУЧНАЯ ПРОВЕРКА (РАССИНХРОН)</h3>
+                <p>Обнаружены заказы, которые уже отгружены на Ozon, но имеют начальный статус в нашей системе. 
+                Они не попадут в реестры склада автоматически.</p>
+                <table style="border-collapse:collapse;width:100%;font-size:13px;background:white;">
+                    <tr style="background:#f0f0f0;">
+                        <th style="border:1px solid #ccc;padding:6px;">Номер заказа</th>
+                        <th style="border:1px solid #ccc;padding:6px;">Внутренний статус</th>
+                        <th style="border:1px solid #ccc;padding:6px;">Статус на Ozon</th>
+                    </tr>
+                    {''.join(rows_disc)}
+                </table>
+            </div>
             """
 
         # --- строим HTML-таблицу для заказов ---

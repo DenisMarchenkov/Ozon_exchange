@@ -39,21 +39,26 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
         ship_not_available = postings["ship_not_available"]
 
 
-        # ============================================================
         # 2. ОБНОВЛЕНИЕ СТАТУСОВ OZON
         # ============================================================
+        # Логируем все категории, чтобы не было "слепых зон"
+        for category, items in postings.items():
+            if items and category not in ["ship_available", "ship_not_available"]:
+                logger.info(f"Заказы в категории '{category}': {len(items)}")
+                logger.info(f"Список {category}: {list(items.keys())}")
+
         # для разрешенных отправлений
         if ship_available:
             logger.info(f"Одобренные для ship: {len(ship_available)}")
             updater = ConfirmationsStatusUpdater()
             updater.process_deliveries(list(ship_available.keys()))
         else:
-            logger.info("Нет данных для обновления статусов заказов в OZON")
+            logger.info("Нет новых заказов, готовых к сборке (ship_available) в OZON")
 
         # для не разрешенных отправлений
         if ship_not_available:
-            logger.info(f"НЕ одобренные для ship: {len(ship_not_available)}")
-            logger.info(f"НЕ одобренные для ship: {ship_not_available}")
+            logger.info(f"НЕ одобренные для ship (требуют ГТД/маркировку): {len(ship_not_available)}")
+            logger.info(f"Список ship_not_available: {list(ship_not_available.keys())}")
 
             # Обновляем статус "ship_not_available"
             for ship in ship_not_available:
