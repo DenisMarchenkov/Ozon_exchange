@@ -107,6 +107,7 @@ def init_confirmations_schema(db):
                            gtd TEXT,
                            date_expiration TEXT,
                            brand TEXT,
+                           is_marked BOOLEAN DEFAULT 0,
                            created_at TEXT NOT NULL,
                            updated_at TEXT NOT NULL,
                            FOREIGN KEY (confirmation_id)

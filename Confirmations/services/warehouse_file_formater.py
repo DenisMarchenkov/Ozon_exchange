@@ -68,9 +68,10 @@ class WarehouseExcelFormatter:
 
         sheet.column_dimensions["A"].width = 15  # бренд
         sheet.column_dimensions["B"].width = 15  # артикул
-        sheet.column_dimensions["C"].width = 45  # наименование
+        sheet.column_dimensions["C"].width = 41  # наименование
         sheet.column_dimensions["D"].width = 15  # срок годности
-        sheet.column_dimensions["E"].width = 7  # количество
+        sheet.column_dimensions["E"].width = 3  # маркировка
+        sheet.column_dimensions["F"].width = 7  # количество
 
         sheet.print_title_rows = "2:2"
 
@@ -103,10 +104,23 @@ class WarehouseExcelFormatter:
                         c.border = thin_white
 
             # Форматирование ячейки 5, если значение больше 1
-            if sheet.cell(row, 5).value > 1:
-                sheet.cell(row, 5).fill = PatternFill(fill_type='solid', fgColor='FF000000')
-                sheet.cell(row, 5).font = Font(color='ffffff', name='Calibri', size=14)
-                sheet.cell(row, 5).border = Border(bottom=Side(border_style='thin', color='ffffff'))
+            if sheet.cell(row, 6).value > 1:
+                sheet.cell(row, 6).fill = PatternFill(fill_type='solid', fgColor='FF000000')
+                sheet.cell(row, 6).font = Font(color='ffffff', name='Calibri', size=14)
+                sheet.cell(row, 6).border = Border(bottom=Side(border_style='thin', color='ffffff'))
+
+
+            # форматирование признака маркированного товара
+            marked = sheet.cell(row, 5).value
+
+            if marked in (1, True):
+                cell = sheet.cell(row, 5)
+                cell.value = "ЧЗ"
+                cell.font = Font(name="Calibri", size=14)
+                cell.fill = PatternFill("solid", fgColor="FFFF00")  # желтый
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                sheet.cell(row, 5).value = ""
 
     def format_full_data(self, sheet: Worksheet):
         sheet.page_setup.orientation = 'landscape'
@@ -117,9 +131,10 @@ class WarehouseExcelFormatter:
         sheet.column_dimensions["A"].width = 27  # номер заказа
         sheet.column_dimensions["B"].width = 18  # бренд
         sheet.column_dimensions["C"].width = 15  # артикул
-        sheet.column_dimensions["D"].width = 48  # наименование
+        sheet.column_dimensions["D"].width = 47  # наименование
         sheet.column_dimensions["E"].width = 6  # количество
         sheet.column_dimensions["F"].width = 15 # срок годности
+        sheet.column_dimensions["G"].width = 3  # срок годности
 
         sheet.print_title_rows = "2:2"
 
@@ -155,3 +170,15 @@ class WarehouseExcelFormatter:
                         c.fill = grey
                         c.font = white_font
                         c.border = thin_white
+
+            # форматирование признака маркированного товара
+            marked = sheet.cell(row, 7).value
+
+            if marked in (1, True):
+                cell = sheet.cell(row, 7)
+                cell.value = "ЧЗ"
+                cell.font = Font(name="Calibri", size=14)
+                cell.fill = PatternFill("solid", fgColor="FFFF00")  # желтый
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                sheet.cell(row, 7).value = ""

@@ -228,7 +228,8 @@ class ConfirmationsRepository:
                     ci.quantity_confirm,
                     ci.price_with_vat,
                     ci.date_expiration,
-                    ci.brand
+                    ci.brand,
+                    ci.is_marked
                 FROM confirmation_items ci
                 JOIN confirmations c ON c.id = ci.confirmation_id
                 WHERE c.dispatch_id = ?
@@ -269,9 +270,9 @@ class ConfirmationsRepository:
                 INSERT INTO confirmation_items
                 (confirmation_id, sku_code, sku_art, name,
                  quantity_confirm, quantity_refused, item_status,
-                 price_with_vat, gtd, date_expiration, brand,
+                 price_with_vat, gtd, date_expiration, brand, is_marked,
                  created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, items)
             conn.commit()
 

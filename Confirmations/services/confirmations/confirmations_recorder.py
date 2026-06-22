@@ -158,6 +158,7 @@ class ConfirmationsRecorder:
                     str(row["GTD"]),
                     str(row["DATE_EXPIRATION"]),
                     str(row["BRAND"]),
+                    int(bool(row["IS_MARKED"])),
                     now_iso(),
                     now_iso()
                 ))

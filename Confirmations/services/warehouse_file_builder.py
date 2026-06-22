@@ -86,6 +86,7 @@ class WarehouseFileBuilder:
             "name",
             "date_expiration",
             "quantity_confirm",
+            "is_marked",
         ]
         self._check_required(required_cols, "Items Summary")
 
@@ -96,7 +97,7 @@ class WarehouseFileBuilder:
                                        .dt.date)
 
         items = (
-            df_items.groupby(["brand", "sku_art", "name", "date_expiration"])
+            df_items.groupby(["brand", "sku_art", "name", "date_expiration", "is_marked"])
             .agg(QNT=("quantity_confirm", "sum"))
             .reset_index()
         )
@@ -108,6 +109,7 @@ class WarehouseFileBuilder:
                 "name": "Наименование",
                 "date_expiration": "Срок годности",
                 "QNT": "Кол-во",
+                "is_marked": "ЧЗ",
             },
             inplace=True,
         )
@@ -125,6 +127,7 @@ class WarehouseFileBuilder:
             "name": "Наименование",
             "quantity_confirm": "Кол-во",
             "date_expiration": "Срок годности",
+            "is_marked": "ЧЗ",
         }
 
         df_full = self.df.rename(columns=rename_map)
