@@ -5,7 +5,7 @@ from Common.settings import CLIENT_ID, API_TOKEN
 from Common.http_utils import send_request_with_retries
 
 def get_unfulfilled_postings(status: str = "awaiting_packaging", limit: int = 1000) -> Dict[str, Any]:
-    url = "https://api-seller.ozon.ru/v3/posting/fbs/unfulfilled/list"
+    url = "https://api-seller.ozon.ru/v4/posting/fbs/unfulfilled/list"
 
     headers = {
         'Api-Key': API_TOKEN,

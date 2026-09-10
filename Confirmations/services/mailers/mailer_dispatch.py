@@ -63,6 +63,12 @@ class DispatchMailer(BaseMailer):
 
         if warehouse_name:
             lines.append(f"Файл для склада: {warehouse_name}")
+            marking_file_id = (
+                warehouse_name
+                .removesuffix(".xlsx")
+                .replace("warehouse_file__", "marking_file_id__", 1)
+            )
+            lines.append(f"Идентификатор файла с кодами маркировки: {marking_file_id}")
         lines.append("")
 
         lines.append("Обработанные отправления:")
