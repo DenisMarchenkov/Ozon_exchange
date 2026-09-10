@@ -38,3 +38,5 @@ Common/settings.py
 # Миграции
 Common/db/migrate_confirmations_dispatch_fk.py
 Stocks/db_stocks/migrate_yandex.py
+
+web/

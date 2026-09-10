@@ -4,7 +4,7 @@ from typing import Dict, Any
 from Common.settings import CLIENT_ID, API_TOKEN
 from Common.http_utils import send_request_with_retries
 
-def get_unfulfilled_postings(status: str = "awaiting_packaging", limit: int = 1000) -> Dict[str, Any]:
+def get_unfulfilled_postings(status: str = "awaiting_packaging", limit: int = 100) -> Dict[str, Any]:
     url = "https://api-seller.ozon.ru/v4/posting/fbs/unfulfilled/list"
 
     headers = {
