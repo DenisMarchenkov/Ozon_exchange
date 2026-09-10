@@ -52,7 +52,7 @@ def save_to_dbf(
             record = (
                 safe_str(p.get('offer_id') or p.get('sku'), 50),
                 safe_str(p.get('name'), 255),
-                safe_float(p.get('price')),
+                safe_float(p.get('price', {}).get('amount')),
                 safe_int(p.get('quantity')),
                 safe_str(posting_number, 50),
                 parse_iso_date(order_date_iso),

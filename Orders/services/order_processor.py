@@ -14,11 +14,11 @@ def save_to_files_server_response(resp, db):
 
     repo = OrdersRepository(db)
 
-    if not resp or 'result' not in resp or 'postings' not in resp['result']:
-        logger.error("Неправильный ответ от API: нет 'result.postings'")
+    if not resp or 'postings' not in resp:
+        logger.error("Неправильный ответ от API: нет 'postings'")
         return
 
-    for posting in resp['result']['postings']:
+    for posting in resp['postings']:
         posting_number = posting.get('posting_number')
         if not posting_number:
             logger.warning("В posting отсутствует posting_number, пропускаю.")

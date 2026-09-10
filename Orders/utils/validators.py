@@ -11,7 +11,7 @@ def validate_product_record(p: dict) -> Tuple[bool, str]:
         return False, "name отсутствует или не строка"
 
     try:
-        if float(p.get('price')) <= 0:
+        if float(p.get('price', {}).get('amount')) <= 0:
             raise ValueError
     except (TypeError, ValueError):
         return False, f"price некорректное: {p.get('price')}"
