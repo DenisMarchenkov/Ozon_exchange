@@ -40,6 +40,7 @@ class OrdersRepository:
             posting_number: str,
             status: str,
             has_requirements: bool,
+            scanit: str,
             items: list[dict]
     ) -> int:
         with self.db.connect() as conn:
@@ -48,9 +49,9 @@ class OrdersRepository:
 
             # 1. создаём заказ
             cur.execute("""
-                INSERT INTO orders (posting_number, status, has_requirements)
-                VALUES (?, ?, ?)
-            """, (posting_number, status, int(has_requirements)))
+                INSERT INTO orders (posting_number, status, has_requirements, scanit)
+                VALUES (?, ?, ?, ?)
+            """, (posting_number, status, int(has_requirements), scanit))
 
             order_id = cur.lastrowid
 
@@ -144,6 +145,48 @@ class OrdersRepository:
                 FROM order_items
             """,)
             return [self._row_to_dict(r) for r in cursor.fetchall()]
+
+    def get_scanit_by_posting(self, posting_number: str) -> Optional[str]:
+        """
+        Возвращает scanit заказа по posting_number.
+        """
+        with self.db.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT scanit
+                FROM orders
+                WHERE posting_number = ?
+            """, (posting_number,))
+            row = cursor.fetchone()
+            return row["scanit"] if row else None
+
+    def get_scanits_by_postings(
+            self,
+            posting_numbers: list[str],
+    ) -> dict[str, str | None]:
+        """
+        Возвращает scanit заказов по posting_number.
+        """
+        if not posting_numbers:
+            return {}
+
+        placeholders = ",".join("?" for _ in posting_numbers)
+
+        with self.db.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"""
+                SELECT posting_number, scanit
+                FROM orders
+                WHERE posting_number IN ({placeholders})
+                """,
+                posting_numbers,
+            )
+
+            return {
+                row["posting_number"]: row["scanit"]
+                for row in cursor.fetchall()
+            }
 
     # ---------- UPDATE ----------
 

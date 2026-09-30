@@ -20,7 +20,7 @@ from Confirmations.api.exemplar_status.ozon_gtd_preparation_service import (Ozon
 logger = get_logger(__name__)
 
 
-def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
+def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db, orders_repo):
     """
     Запуск OZON-сценария.
 
@@ -129,6 +129,7 @@ def run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db):
         confirmations_repo=confirmations_repo,
         labels_generator=labels_generator,
         warehouse_builder_cls=lambda rows: WarehouseFileBuilder(rows, suffix="OZON"),
+        orders_repo=orders_repo,
     )
 
     # ============================================================

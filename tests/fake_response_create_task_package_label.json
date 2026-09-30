@@ -1,14 +1,8 @@
 {
-  "result": {
-    "tasks": [
-      {
-        "task_id": 5819327210248,
-        "task_type": "big_label"
-      },
-      {
-        "task_id": 5819327210249,
-        "task_type": "small_label"
-      }
-    ]
-  }
+  "tasks": [
+    {
+      "task_id": 481430562,
+      "task_type": "small_label"
+    }
+  ]
 }

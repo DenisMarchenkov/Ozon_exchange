@@ -19,7 +19,7 @@ def init_orders_schema(db):
 
                 -- флаг наличия зависимостей
                 has_requirements INTEGER DEFAULT 0,
-
+                scanit TEXT
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )

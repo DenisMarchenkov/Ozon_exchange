@@ -4,11 +4,11 @@ from Common.db.database import Database
 from Common.db.init_db import init_confirmations_schema, init_dispatch_schema
 from Common.file_policy import FilePolicy
 from Common.logger import get_logger
-from Common.settings import DB_PATH, RECIPIENT_MANAGERS, RECIPIENT_STOCK, RECIPIENT_ADMIN
+from Common.settings import DB_PATH, RECIPIENT_MANAGERS, RECIPIENT_STOCK, RECIPIENT_ADMIN, DEV_MODE
 from Confirmations.db_confirmations.confirmations_repository import ConfirmationsRepository
 from Confirmations.db_confirmations.dispatch_repository import DispatchRepository
 from Confirmations.other_flow import run_other_flow
-
+from Orders.db_orders.orders_repository import OrdersRepository
 from Confirmations.services.confirmations.confirmations_recorder import ConfirmationsRecorder
 from Confirmations.services.confirmations.confirmations_reader import ConfirmationsReader
 from Confirmations.services.archive_file_manager import ArchiveFileManager
@@ -40,7 +40,7 @@ def main():
 
     confirmations_repo = ConfirmationsRepository(db)
     dispatch_repo = DispatchRepository(db)
-
+    orders_repo = OrdersRepository(db)
 
     # ============================================================
     # 1. ФИЛЬТРАЦИЯ И ЧТЕНИЕ ПОДТВЕРЖДЕНИЙ
@@ -145,7 +145,7 @@ def main():
     if has_ozon_pending:
         logger.info(f"Запуск сценария OZON (новых: {len(ozon_confirmations)})")
         try:
-            run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db)
+            run_ozon_flow(ozon_confirmations, confirmations_repo, dispatch_repo, db, orders_repo)
         except Exception as e:
             logger.exception(f"Критическая ошибка в сценарии OZON: {e}")
 
@@ -190,7 +190,10 @@ def main():
             if not dispatch_files:
                 raise RuntimeError("Нет файлов для отправки")
 
-            recipients = RECIPIENT_MANAGERS + RECIPIENT_STOCK
+            if DEV_MODE:
+                recipients = RECIPIENT_ADMIN
+            else:
+                recipients = RECIPIENT_MANAGERS + RECIPIENT_STOCK
             mailer = DispatchMailer(dispatch_files, processing_orders, to=recipients)
             mailer.send()
 

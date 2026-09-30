@@ -3,10 +3,12 @@ class DispatchFilesService:
         self,
         dispatch_repo,
         confirmations_repo,
+        orders_repo,
         labels_generator=None,
         warehouse_builder_cls=None,
         required_file_types: set[str] | None = None,
     ):
+        self.orders_repo = orders_repo
         self.dispatch_repo = dispatch_repo
         self.confirmations_repo = confirmations_repo
         self.labels_generator = labels_generator
@@ -44,7 +46,18 @@ class DispatchFilesService:
 
         if "WAREHOUSE" in missing_files:
             items = self.confirmations_repo.get_items_by_dispatch(dispatch_id)
+
             if items:
+                posting_numbers = list({
+                    item["posting_number"]
+                    for item in items
+                })
+
+                scanits = self.orders_repo.get_scanits_by_postings(posting_numbers)
+
+                for item in items:
+                    item["scanit"] = scanits.get(item["posting_number"])
+
                 builder = self.warehouse_builder_cls(rows=items)
                 warehouse_path = builder.build()
                 if warehouse_path and warehouse_path.exists():

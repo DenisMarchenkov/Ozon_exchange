@@ -41,6 +41,7 @@ def save_to_files_server_response(resp, db):
             for key, value in requirements.items()
             if isinstance(value, list) and value
         }
+        scanit = posting.get('scanit')
 
         if status is None:
             logger.info(f"Новый заказ {posting_number}, создаю в БД со статусом 'new'")
@@ -70,7 +71,8 @@ def save_to_files_server_response(resp, db):
                 posting_number=posting_number,
                 status="new",
                 has_requirements=has_requirements,
-                items=items
+                items=items,
+                scanit=scanit
             )
 
 

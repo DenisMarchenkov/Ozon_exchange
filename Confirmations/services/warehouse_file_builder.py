@@ -132,6 +132,15 @@ class WarehouseFileBuilder:
 
         df_full = self.df.rename(columns=rename_map)
 
+        # Объединяем номер заказа и scanit в одной ячейке
+        if "scanit" in self.df.columns:
+            df_full["Номер заказа"] = (
+                    self.df["posting_number"].astype(str)
+                    + "\n"
+                    + "sc_"
+                    + self.df["scanit"].fillna("").astype(str)
+            )
+
         # ВАЖНО: приводим к дате без времени
         df_full["Срок годности"] = (
             pd.to_datetime(df_full["Срок годности"], errors="coerce")

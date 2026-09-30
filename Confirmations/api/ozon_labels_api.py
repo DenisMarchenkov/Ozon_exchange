@@ -55,7 +55,8 @@ class OzonLabelsAPI:
                         "Ozon not ready: NO_POSTINGS_FOR_BATCH_DOWNLOAD"
                     )
 
-            tasks = resp.get("result", {}).get("tasks", [])
+            #tasks = resp.get("result", {}).get("tasks", [])
+            tasks = resp.get("tasks", [])
             if not tasks:
                 # Если вернулся 200, но тасков нет — это тоже странно, но логируем
                 # Если была ошибка 400, "result" может не быть.
@@ -96,13 +97,19 @@ class OzonLabelsAPI:
         if not response:
             return {"status": "error"}
 
-        result = response.get("result", {})
-        status = result.get("status")
-        file_url = result.get("file_url")
-        printed_count = result.get("printed_postings_count")
-        unprinted = result.get("unprinted_postings", [])
+        #result = response.get("result", {})
+        #status = result.get("status")
+        status = response.get("status", {})
+        status_code = status.get("code")
+        #file_url = result.get("file_url")
+        file_url = response.get("file_url")
+        #printed_count = result.get("printed_postings_count")
+        printed_count = status.get("printed_postings_count")
+        #unprinted = result.get("unprinted_postings", [])
+        unprinted = status.get("unprinted_postings", [])
 
-        if status == "completed" and file_url:
+        #if status == "completed" and file_url:
+        if status_code == "completed" and file_url:
             return {
                 "status": "completed",
                 "file_url": file_url,
@@ -110,7 +117,7 @@ class OzonLabelsAPI:
                 "unprinted_postings": unprinted,
             }
 
-        if status in {"pending", "in_progress", "completed"}:
+        if status_code in {"pending", "in_progress", "completed"}:
             # completed, но без файла — ЖДЁМ
             return {"status": "in_progress"}
 
