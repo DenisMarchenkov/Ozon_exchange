@@ -35,8 +35,5 @@ Statuses/settings_app/settings_statuses.py
 Stocks/settings_app/settings_stocks.py
 Common/settings.py
 
-# Миграции
-Common/db/migrate_confirmations_dispatch_fk.py
-Stocks/db_stocks/migrate_yandex.py
 
 web/
