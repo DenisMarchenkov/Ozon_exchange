@@ -1,6 +1,6 @@
 from Stocks.api.yandex_api import get_sku_from_yandex, update_stocks_yandex
 from Stocks.readers.excel_reader import prepare_offers_data
-from Stocks.api.ozon_api import update_stocks, get_sku_from_ozon, update_promo_timer
+from Stocks.api.ozon_api import update_stocks, get_sku_from_ozon, update_promo_timer, get_marked_products
 from Stocks.db_stocks.stocks_repository import StocksRepository
 from Common.file_utils import copy_file_with_timestamp
 from Common.settings import SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER
@@ -180,18 +180,19 @@ def start_update_promo_timer(data):
 
 
 def main():
-    """
-    Точка входа:
-    1. Копируем файл поставщика
-    2. Обновляем остатки
-    3. Обновляем промо
-    """
-
+    # 1. Копируем файл поставщика
     file_supplier = copy_file_with_timestamp(SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER)
 
+    # 2. Обновляем остатки
     stocks_to_update = start_exchange_stock(file_supplier)
 
+    # 3. Обновляем промо
     start_update_promo_timer(stocks_to_update)
+
+    #4. Проверяем товары на наличие признака "нужна маркировка" в карточке товара (характеристики)
+    # articles = [item["offerId"] for item in prepare_offers_data(file_supplier)]
+    # marked_sku = get_marked_products(offer_ids=articles)
+    # print(marked_sku)
 
 
 if __name__ == "__main__":

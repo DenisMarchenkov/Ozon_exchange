@@ -133,3 +133,64 @@ def update_promo_timer(prod_ids, batch_size=100):
         time.sleep(1)  # чтобы не ловить rate limit
 
     return responses
+
+
+def get_marked_products(
+        offer_ids: list[str],
+) -> list[str]:
+    """
+    Возвращает offer_id товаров, у которых
+    установлен признак обязательной маркировки.
+
+    :param offer_ids: список артикулов Ozon (offer_id)
+    """
+
+    url = "https://api-seller.ozon.ru/v4/product/info/attributes"
+    MARKING_ATTRIBUTE_ID = 23536 # нашел в документации озона
+
+    headers = {
+        "Client-Id": CLIENT_ID,
+        "Api-Key": API_TOKEN,
+        "Content-Type": "application/json",
+    }
+
+    result: list[str] = []
+    last_id = ""
+
+    while True:
+        body = {
+            "filter": {
+                "offer_id": offer_ids,
+                "visibility": "ALL",
+            },
+            "limit": 100,
+            "last_id": last_id,
+        }
+
+        response = send_request_with_retries(
+            url=url,
+            headers=headers,
+            method="POST",
+            body=body
+        )
+
+        last_id = response.get("last_id")
+        for product in response.get("result", []):
+
+            for attribute in product.get("attributes", []):
+                if attribute.get("id") != MARKING_ATTRIBUTE_ID:
+                    continue
+
+                for value in attribute.get("values", []):
+                    if value.get("value", "").lower() == "true":
+                        result.append(product["offer_id"])
+                        break
+
+                break
+
+        last_id = response.get("last_id", "")
+
+        if not last_id:
+            break
+
+    return result
