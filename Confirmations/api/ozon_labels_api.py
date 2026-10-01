@@ -38,7 +38,7 @@ class OzonLabelsAPI:
             f"count={len(posting_numbers)}, "
             f"posting_numbers={posting_numbers}"
         )
-        data = {"posting_number": list(posting_numbers)}
+        data = {"posting_numbers": list(posting_numbers)}
         logger.info("Ozon create labels BODY: %r", data)
         try:
             resp = send_request_with_retries(
