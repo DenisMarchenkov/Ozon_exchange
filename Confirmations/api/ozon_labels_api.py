@@ -33,6 +33,11 @@ class OzonLabelsAPI:
     # -------------------------------------------------
 
     def create_task(self, posting_numbers: Iterable[str]) -> str | None:
+        logger.info(
+            f"Ozon create labels: "
+            f"count={len(posting_numbers)}, "
+            f"posting_numbers={posting_numbers}"
+        )
         data = {"posting_number": list(posting_numbers)}
 
         try:
