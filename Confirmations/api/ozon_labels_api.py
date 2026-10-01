@@ -55,8 +55,8 @@ class OzonLabelsAPI:
                         "Ozon not ready: NO_POSTINGS_FOR_BATCH_DOWNLOAD"
                     )
 
-            #tasks = resp.get("result", {}).get("tasks", [])
-            tasks = resp.get("tasks", [])
+            tasks = resp.get("result", {}).get("tasks", [])
+            #tasks = resp.get("tasks", [])
             if not tasks:
                 # Если вернулся 200, но тасков нет — это тоже странно, но логируем
                 # Если была ошибка 400, "result" может не быть.
