@@ -33,13 +33,7 @@ class OzonLabelsAPI:
     # -------------------------------------------------
 
     def create_task(self, posting_numbers: Iterable[str]) -> str | None:
-        logger.info(
-            f"Ozon create labels: "
-            f"count={len(posting_numbers)}, "
-            f"posting_numbers={posting_numbers}"
-        )
         data = {"posting_numbers": list(posting_numbers)}
-        logger.info("Ozon create labels BODY: %r", data)
         try:
             resp = send_request_with_retries(
                 url=self.CREATE_URL,

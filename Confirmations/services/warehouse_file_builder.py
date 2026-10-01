@@ -137,7 +137,7 @@ class WarehouseFileBuilder:
             df_full["Номер заказа"] = (
                     self.df["posting_number"].astype(str)
                     + "\n"
-                    + "sc_"
+                    + "_"
                     + self.df["scanit"].fillna("").astype(str)
             )
 
