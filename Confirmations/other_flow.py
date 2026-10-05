@@ -7,7 +7,7 @@ from Common.time import now_iso
 logger = get_logger(__name__)
 
 
-def run_other_flow(other_confirmations, confirmations_repo, dispatch_repo):
+def run_other_flow(other_confirmations, confirmations_repo, dispatch_repo, orders_repo):
     if not other_confirmations:
         logger.info("Нет подтверждений для OTHERS")
         return
@@ -19,6 +19,7 @@ def run_other_flow(other_confirmations, confirmations_repo, dispatch_repo):
         confirmations_repo=confirmations_repo,
         labels_generator=None,                      # без наклеек
         warehouse_builder_cls=lambda rows: WarehouseFileBuilder(rows, suffix="OTHERS"),
+        orders_repo=orders_repo,
     )
 
     # --- prepare новый dispatch с блокировкой только подтверждений ---

@@ -13,6 +13,7 @@ def run_yandex_flow(
     yandex_confirmations,
     confirmations_repo,
     dispatch_repo,
+    orders_repo
 ):
     if yandex_confirmations:
         from Confirmations.api.yandex_confirmations_api import YandexConfirmationsAPI
@@ -59,6 +60,7 @@ def run_yandex_flow(
         confirmations_repo=confirmations_repo,
         labels_generator=labels_generator,
         warehouse_builder_cls=lambda rows: WarehouseFileBuilder(rows, suffix="YANDEX"),
+        orders_repo=orders_repo
     )
 
     # ============================================================

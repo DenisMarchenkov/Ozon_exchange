@@ -152,7 +152,7 @@ def main():
     if other_confirmations:
         logger.info(f"запуск сценария для {len(other_confirmations)} остальных заказов")
         try:
-            run_other_flow(other_confirmations, confirmations_repo, dispatch_repo)
+            run_other_flow(other_confirmations, confirmations_repo, dispatch_repo, orders_repo)
         except Exception as e:
             logger.exception(f"Критическая ошибка в сценарии OTHER: {e}")
 
@@ -171,7 +171,7 @@ def main():
     if has_yandex_pending:
         logger.info(f"Запуск сценария YANDEX (новых: {len(yandex_confirmations)})")
         try:
-            run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo)
+            run_yandex_flow(yandex_confirmations, confirmations_repo, dispatch_repo, orders_repo)
         except Exception as e:
             logger.exception(f"Критическая ошибка в сценарии YANDEX: {e}")
 
