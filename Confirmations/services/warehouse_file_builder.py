@@ -132,13 +132,18 @@ class WarehouseFileBuilder:
 
         df_full = self.df.rename(columns=rename_map)
 
-        # Объединяем номер заказа и scanit в одной ячейке
+        # Добавляем scanit к номеру заказа, если он реально есть
         if "scanit" in self.df.columns:
-            df_full["Номер заказа"] = (
-                    self.df["posting_number"].astype(str)
-                    + "\n"
-                    + "_"
-                    + self.df["scanit"].fillna("").astype(str)
+            scanit = self.df["scanit"].fillna("").astype(str).str.strip()
+
+            df_full["Номер заказа"] = self.df["posting_number"].astype(str)
+
+            mask = scanit != ""
+
+            df_full.loc[mask, "Номер заказа"] = (
+                    self.df.loc[mask, "posting_number"].astype(str)
+                    + "\n_"
+                    + scanit[mask]
             )
 
         # ВАЖНО: приводим к дате без времени
