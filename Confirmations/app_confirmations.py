@@ -187,6 +187,7 @@ def main():
         try:
             dispatch_files = dispatch_repo.get_files(d_id)
             processing_orders = confirmations_repo.get_postings_by_dispatch(d_id)
+            scanits = orders_repo.get_scanits_by_postings(processing_orders)
             if not dispatch_files:
                 raise RuntimeError("Нет файлов для отправки")
 
@@ -194,7 +195,7 @@ def main():
                 recipients = RECIPIENT_ADMIN
             else:
                 recipients = RECIPIENT_MANAGERS + RECIPIENT_STOCK
-            mailer = DispatchMailer(dispatch_files, processing_orders, to=recipients)
+            mailer = DispatchMailer(dispatch_files, processing_orders, scanits, to=recipients)
             mailer.send()
 
             dispatch_repo.update_status(d_id, "SHIPPED_TO_STOCK")

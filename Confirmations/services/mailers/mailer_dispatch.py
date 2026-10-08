@@ -9,27 +9,51 @@ class DispatchMailer(BaseMailer):
     Письмо с наклейками и файлом для сборки заказов.
     """
 
-    def __init__(self, dispatch_files: Iterable[dict], processing_orders: list = None, *args, **kwargs):
+    def __init__(
+        self,
+        dispatch_files: Iterable[dict],
+        processing_orders: list = None,
+        scanits: dict[str, str | None] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+
         self.dispatch_files = list(dispatch_files)
         self.processing_orders = processing_orders or []
-        self.dispatch_id = self.dispatch_files[0].get("dispatch_id") if self.dispatch_files else None
+        self.scanits = scanits or {}
+
+        self.dispatch_id = (
+            self.dispatch_files[0].get("dispatch_id")
+            if self.dispatch_files
+            else None
+        )
+
         # Если есть, берём только часть после последнего "_"
-        self.suffix_for_subject = self.dispatch_id.split("_")[-1] if self.dispatch_id else None
+        self.suffix_for_subject = (
+            self.dispatch_id.split("_")[-1]
+            if self.dispatch_id
+            else None
+        )
 
     # -----------------------------------------------
     #               Тема письма
     # -----------------------------------------------
+
     def build_subject_core(self) -> str:
         count = len(self.processing_orders)
+
         subject = f"Заказы к сбору ({count} шт.)"
+
         if self.dispatch_id:
             subject += f" --- {self.suffix_for_subject}"
+
         return subject
 
     # -----------------------------------------------
     #               Тело письма
     # -----------------------------------------------
+
     def build_body(self) -> str:
         if not self.dispatch_files:
             return (
@@ -37,13 +61,13 @@ class DispatchMailer(BaseMailer):
                 "Файлы для сборки заказов отсутствуют.\n"
             )
 
-
         label_name = None
         warehouse_name = None
 
         for file in self.dispatch_files:
             if file.get("file_type") == "LABEL":
                 label_name = Path(file["file_path"]).name
+
             elif file.get("file_type") == "WAREHOUSE":
                 warehouse_name = Path(file["file_path"]).name
 
@@ -54,7 +78,9 @@ class DispatchMailer(BaseMailer):
         ]
 
         if self.dispatch_id:
-            lines.append(f"Идентификатор отправки: {self.dispatch_id}")
+            lines.append(
+                f"Идентификатор отправки: {self.dispatch_id}"
+            )
 
         lines.append("")
 
@@ -63,18 +89,37 @@ class DispatchMailer(BaseMailer):
 
         if warehouse_name:
             lines.append(f"Файл для склада: {warehouse_name}")
+
             marking_file_id = (
                 warehouse_name
                 .removesuffix(".xlsx")
-                .replace("warehouse_file__", "marking_file_id__", 1)
+                .replace(
+                    "warehouse_file__",
+                    "marking_file_id__",
+                    1,
+                )
             )
-            lines.append(f"Идентификатор файла с кодами маркировки: {marking_file_id}")
+
+            lines.append(
+                "Идентификатор файла с кодами маркировки: "
+                f"{marking_file_id}"
+            )
+
         lines.append("")
 
         lines.append("Обработанные отправления:")
-        for order in self.processing_orders:
-            lines.append(f"----- {order}")
 
+        for posting_number in self.processing_orders:
+            scanit = self.scanits.get(posting_number)
+
+            if scanit:
+                lines.append(
+                    f"----- {posting_number} | scanit: {scanit}"
+                )
+            else:
+                lines.append(
+                    f"----- {posting_number}"
+                )
 
         lines.extend([
             "",
@@ -86,11 +131,13 @@ class DispatchMailer(BaseMailer):
     # -----------------------------------------------
     #               Вложения
     # -----------------------------------------------
+
     def build_attachments(self) -> List[Path]:
         attachments: List[Path] = []
 
         for file in self.dispatch_files:
             path = file.get("file_path")
+
             if not path:
                 continue
 
