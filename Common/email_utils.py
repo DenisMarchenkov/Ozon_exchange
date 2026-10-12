@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 from email.message import EmailMessage
 from pathlib import Path
 from platform import python_version
@@ -47,7 +48,13 @@ def send_email(
                     subtype="octet-stream",
                     filename=file_path.name,
                 )
+    context = ssl.create_default_context()
 
-    with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+    #with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.ehlo()
+        server.starttls(context=context)
+        server.ehlo()
+
         server.login(smtp_user, smtp_password)
         server.send_message(msg)
