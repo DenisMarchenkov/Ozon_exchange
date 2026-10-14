@@ -106,7 +106,7 @@ def start_exchange_stock(file):
             repo.save_stock_history_bulk(log_id, stocks_to_update)
 
             # Отправляем остатки
-            #response = update_stocks(stocks_to_update)
+            response = update_stocks(stocks_to_update)
             #logger.info(response)
 
             # Завершаем сессию
@@ -129,7 +129,7 @@ def start_exchange_stock(file):
             repo.save_yandex_stock_history_bulk(log_id, stocks_to_update_yandex)
 
             # Отправляем остатки
-            #update_stocks_yandex(stocks_to_update_yandex)
+            update_stocks_yandex(stocks_to_update_yandex)
 
             # Завершаем сессию
             repo.finish_stock_update_session(log_id, len(stocks_to_update_yandex), "SUCCESS")
