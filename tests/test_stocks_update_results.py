@@ -158,6 +158,35 @@ def load_app(dry_run=False):
 
 
 class StockSessionResultTests(unittest.TestCase):
+    def test_failed_ozon_catalog_does_not_block_yandex_or_start_promo(self):
+        app, repo, ozon, yandex = load_app()
+        ozon.get_sku_from_ozon.side_effect = CatalogLoadError(2, 20, "timeout")
+        yandex.update_stocks_yandex.return_value = UpdateResult(updated=1)
+        app.main()
+        ozon.update_stocks.assert_not_called()
+        ozon.update_promo_timer.assert_not_called()
+        repo.create_promo_timer_session.assert_not_called()
+        repo.save_stock_history_bulk.assert_not_called()
+        yandex.update_stocks_yandex.assert_called_once()
+        self.assertEqual([c.args for c in repo.finish_stock_update_session.call_args_list], [
+            (1, 0, "ERROR: CATALOG_LOAD_FAILED"), (2, 1, "SUCCESS"),
+        ])
+        self.assertIsNone(repo.create_stock_update_session.call_args_list[0].kwargs["total_ozon"])
+
+    def test_both_catalog_failures_are_logged_without_sending(self):
+        app, repo, ozon, yandex = load_app()
+        ozon.get_sku_from_ozon.side_effect = CatalogLoadError(1, 0, "timeout")
+        yandex.get_sku_from_yandex.side_effect = CatalogLoadError(2, 20, "timeout")
+        with self.assertLogs(app.logger, level="WARNING") as logs:
+            self.assertEqual(app.start_exchange_stock("test"), [])
+        ozon.update_stocks.assert_not_called()
+        yandex.update_stocks_yandex.assert_not_called()
+        self.assertEqual([c.args for c in repo.finish_stock_update_session.call_args_list], [
+            (1, 0, "ERROR: CATALOG_LOAD_FAILED"), (2, 0, "ERROR: CATALOG_LOAD_FAILED"),
+        ])
+        self.assertIn("Ozon=ERROR: CATALOG_LOAD_FAILED, Яндекс=ERROR: CATALOG_LOAD_FAILED",
+                      "\n".join(logs.output))
+
     def test_failed_yandex_catalog_skips_sending_and_keeps_ozon_working(self):
         for dry_run in [False, True]:
             with self.subTest(dry_run=dry_run):

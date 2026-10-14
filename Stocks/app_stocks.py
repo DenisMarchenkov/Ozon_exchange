@@ -28,7 +28,14 @@ def start_exchange_stock(file):
 
     # --- 2. Получаем товары из маркетплейсов ---
     # Если маркет отключен — просто получаем пустой список
-    sku_ozon = get_sku_from_ozon() if ENABLE_OZON else []
+    sku_ozon = []
+    ozon_catalog_error = None
+    if ENABLE_OZON:
+        try:
+            sku_ozon = get_sku_from_ozon()
+        except CatalogLoadError as e:
+            ozon_catalog_error = e
+            logger.error("Ozon: отправка остатков и промо отменены из-за CATALOG_LOAD_FAILED: %s", e)
     sku_yandex = []
     yandex_catalog_error = None
     if ENABLE_YANDEX:
@@ -57,7 +64,7 @@ def start_exchange_stock(file):
     # =========================
     # --- 4a. OZON логика ---
     # =========================
-    if ENABLE_OZON:
+    if ENABLE_OZON and ozon_catalog_error is None:
 
         # Товары, которые есть и в прайсе, и в Ozon → обновляем остатки
         for offer_id, offer in offers_index.items():
@@ -101,70 +108,62 @@ def start_exchange_stock(file):
 
     # --- 5. Логирование ---
     logger.info(f"Всего товаров из прайса: {len(offers_index)}")
-    logger.info(f"Всего товаров в Ozon: {len(ozon_index)} | Товаров к обновлению: {len(stocks_to_update)}")
+    if ozon_catalog_error is None:
+        logger.info(f"Всего товаров в Ozon: {len(ozon_index)} | Товаров к обновлению: {len(stocks_to_update)}")
+    else:
+        logger.error("Ozon: полный каталог неизвестен, получено до сбоя=%s, отправки не будет",
+                     ozon_catalog_error.loaded_count)
     if yandex_catalog_error is None:
         logger.info(f"Всего товаров в Yandex: {len(yandex_index)} | Товаров к обновлению: {len(stocks_to_update_yandex)}")
     else:
         logger.error("Яндекс: полный каталог неизвестен, получено до сбоя=%s, отправки не будет",
                      yandex_catalog_error.loaded_count)
 
-    # =========================
-    # --- 6. Отправка в OZON ---
-    # =========================
-    if ENABLE_OZON:
-        log_id = repo.create_stock_update_session(
-            total_file=len(offers_index),
-            total_ozon=len(ozon_index),
-            marketplace="OZON"
-        )
+    # Каждый маркетплейс завершает свою сессию независимо от другого.
+    statuses = {}
+    marketplaces = [
+        ("OZON", "Ozon", ENABLE_OZON, ozon_catalog_error, ozon_index, stocks_to_update,
+         repo.save_stock_history_bulk, update_stocks),
+        ("YANDEX", "Яндекс", ENABLE_YANDEX, yandex_catalog_error, yandex_index, stocks_to_update_yandex,
+         repo.save_yandex_stock_history_bulk, update_stocks_yandex),
+    ]
+    for marketplace, name, enabled, catalog_error, index, stocks, save_history, send in marketplaces:
+        if not enabled:
+            statuses[marketplace] = "DISABLED"
+            continue
+        log_id = None
         try:
-            # Сохраняем историю перед отправкой
-            repo.save_stock_history_bulk(log_id, stocks_to_update)
+            log_id = repo.create_stock_update_session(
+                total_file=len(offers_index),
+                total_ozon=None if catalog_error else len(index), marketplace=marketplace,
+            )
+            if catalog_error is not None:
+                statuses[marketplace] = "ERROR: CATALOG_LOAD_FAILED"
+                repo.finish_stock_update_session(log_id, 0, statuses[marketplace])
+                logger.error("Сессия остатков %s: session_id=%s, status=%s, отправка отменена",
+                             name, log_id, statuses[marketplace])
+                continue
 
+            save_history(log_id, stocks)
             if DRY_RUN:
-                logger.info("Ozon: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
-                            log_id, len(stocks_to_update))
+                statuses[marketplace] = "DRY_RUN"
+                logger.info("%s: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
+                            name, log_id, len(stocks))
                 repo.finish_stock_update_session(log_id, 0, "DRY_RUN")
             else:
-                result = update_stocks(stocks_to_update)
-                log_update_result(logger, "Сессия остатков Ozon", result, log_id)
+                result = send(stocks)
+                statuses[marketplace] = result.status
+                log_update_result(logger, f"Сессия остатков {name}", result, log_id)
                 repo.finish_stock_update_session(log_id, result.updated, result.status)
         except Exception as e:
-            logger.exception("Ошибка сессии остатков Ozon: session_id=%s", log_id)
-            repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
+            statuses[marketplace] = f"ERROR: {str(e)[:100]}"
+            logger.exception("Ошибка сессии остатков %s: session_id=%s", name, log_id)
+            if log_id is not None:
+                repo.finish_stock_update_session(log_id, 0, statuses[marketplace])
 
-    # =========================
-    # --- 7. Отправка в YANDEX ---
-    # =========================
-    if ENABLE_YANDEX:
-        log_id = repo.create_stock_update_session(
-            total_file=len(offers_index),
-            total_ozon=None if yandex_catalog_error else len(yandex_index),
-            marketplace="YANDEX"
-        )
-        try:
-            if yandex_catalog_error is not None:
-                repo.finish_stock_update_session(log_id, 0, "ERROR: CATALOG_LOAD_FAILED")
-                logger.error("Сессия остатков Яндекс: session_id=%s, status=ERROR: CATALOG_LOAD_FAILED, "
-                             "подтверждено=0, отправка отменена", log_id)
-                logger.warning("=== Обмен завершен с ошибкой загрузки каталога Яндекс ===")
-                return stocks_to_update
-            # Сохраняем историю
-            repo.save_yandex_stock_history_bulk(log_id, stocks_to_update_yandex)
-
-            if DRY_RUN:
-                logger.info("Яндекс: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
-                            log_id, len(stocks_to_update_yandex))
-                repo.finish_stock_update_session(log_id, 0, "DRY_RUN")
-            else:
-                result = update_stocks_yandex(stocks_to_update_yandex)
-                log_update_result(logger, "Сессия остатков Яндекс", result, log_id)
-                repo.finish_stock_update_session(log_id, result.updated, result.status)
-        except Exception as e:
-            logger.exception("Ошибка сессии остатков Яндекс: session_id=%s", log_id)
-            repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
-
-    logger.info("=== Завершено ===")
+    log = logger.warning if any(status.startswith("ERROR") or status == "PARTIAL"
+                                for status in statuses.values()) else logger.info
+    log("=== Обмен завершен: Ozon=%s, Яндекс=%s ===", statuses["OZON"], statuses["YANDEX"])
     return stocks_to_update
 
 

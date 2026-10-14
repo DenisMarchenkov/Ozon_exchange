@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 from Stocks.services.stock_processor import prepare_batches
 from Stocks.services.update_result import UpdateResult, confirmed_ozon_stocks, promo_batch_succeeded
 from Stocks.services.update_logging import log_ozon_failures, log_update_result, response_reason
+from Stocks.services.catalog_errors import CatalogLoadError
 from Common.http_utils import send_request_with_retries
 from Common.settings import CLIENT_ID, API_TOKEN
 from Common.logger import get_logger
@@ -75,6 +76,9 @@ def get_sku_from_ozon():
 
     all_items = []
     last_id = ""
+    page_number = 1
+    seen_tokens = set()
+    logger.info("Ozon: начало загрузки каталога, размер страницы=1000")
 
     while True:
         body = {
@@ -85,21 +89,42 @@ def get_sku_from_ozon():
             "limit": 1000
         }
 
-        response = send_request_with_retries(
-            url=url,
-            headers=headers,
-            method="POST",
-            body=body
-        )
+        try:
+            logger.info("Ozon: запрос страницы=%s, уже загружено=%s", page_number, len(all_items))
+            response = send_request_with_retries(
+                url=url, headers=headers, method="POST", body=body
+            )
+            if not isinstance(response, dict) or response.get("errors") or response.get("code"):
+                raise ValueError(response_reason(response, "result каталога"))
+            result = response.get("result")
+            if not isinstance(result, dict):
+                raise ValueError("некорректный result каталога")
+            items = result.get("items")
+            next_id = result.get("last_id")
+            if not isinstance(items, list) or not isinstance(next_id, str):
+                raise ValueError("отсутствуют или некорректны items/last_id")
+            for item in items:
+                if (not isinstance(item, dict)
+                        or not isinstance(item.get("offer_id"), str) or not item["offer_id"]
+                        or type(item.get("product_id")) is not int or item["product_id"] <= 0):
+                    raise ValueError("товар каталога не содержит корректные offer_id/product_id")
+            if items and next_id and next_id in seen_tokens:
+                raise ValueError("повторяющийся токен страницы; загрузка остановлена")
 
-        items = response["result"]["items"]
-        last_id = response["result"]["last_id"]
-
-        all_items.extend(items)
-
-        # если last_id пустой — значит это последняя страница
-        if not last_id:
-            break
+            all_items.extend(items)
+            logger.info("Ozon: страница=%s загружена, получено=%s, всего=%s",
+                        page_number, len(items), len(all_items))
+            if not items or not next_id:
+                logger.info("Ozon: каталог загружен полностью, страниц=%s, товаров=%s",
+                            page_number, len(all_items))
+                break
+            seen_tokens.add(next_id)
+            last_id = next_id
+            page_number += 1
+        except Exception as e:
+            error = CatalogLoadError(page_number, len(all_items), str(e))
+            logger.error("Ozon: CATALOG_LOAD_FAILED, каталог не загружен полностью: %s", error)
+            raise error from e
 
     return all_items
 
