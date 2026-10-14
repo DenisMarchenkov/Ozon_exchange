@@ -78,5 +78,57 @@ class ExcelArticleTests(unittest.TestCase):
         self.assertEqual(actual, [{"offer_id": "123", "product_id": 1, "stock": 5}])
 
 
+class ExcelQuantityTests(unittest.TestCase):
+    def test_integer_values_with_zero_fraction_are_accepted(self):
+        reader = load_reader()
+        offers = reader.prepare_offers_data(xlsx([
+            ("A", "4,000"), ("B", 5.0), ("C", "6.000"), ("D", " 7,00 "),
+        ]))
+        self.assertEqual({o["offerId"]: o["qua"] for o in offers}, {"A": 4, "B": 5, "C": 6, "D": 7})
+
+    def test_nonzero_fractions_are_rejected_without_rounding(self):
+        reader = load_reader()
+        for quantity in ["3,4", "5,84", 3.4, "-5,84", "4.0000000000000000001"]:
+            with self.subTest(quantity=quantity), self.assertRaisesRegex(ValueError, "Excel 3.*артикул=B"):
+                reader.prepare_offers_data(xlsx([("A", 1), ("B", quantity)]))
+
+    def test_fractions_cannot_cancel_each_other_before_validation(self):
+        reader = load_reader()
+        with self.assertRaises(ValueError):
+            reader.prepare_offers_data(xlsx([("A", "1,4"), ("A", "-0,4")]))
+
+    def test_negative_corrections_are_summed_before_clamping(self):
+        reader = load_reader()
+        with self.assertLogs(reader.logger, level="WARNING") as logs:
+            offers = reader.prepare_offers_data(xlsx([
+                ("A", 10), ("A", -3), ("B", 3), ("B", -10), ("C", "-2,000"),
+            ]))
+        self.assertEqual(offers, [
+            {"offerId": "A", "qua": 7}, {"offerId": "B", "qua": 0}, {"offerId": "C", "qua": 0},
+        ])
+        text = "\n".join(logs.output)
+        self.assertNotIn("артикул=A", text)
+        self.assertIn("артикул=B", text)
+        self.assertIn("строки Excel=[4, 5]", text)
+        self.assertIn("исходный итог=-7", text)
+
+    def test_invalid_values_are_rejected(self):
+        reader = load_reader()
+        for quantity in ["нет", "nan", "inf", True, datetime(2026, 10, 14)]:
+            with self.subTest(quantity=quantity), self.assertRaises(ValueError):
+                reader.normalize_quantity(quantity)
+
+    def test_fraction_prevents_all_marketplace_requests(self):
+        reader = load_reader()
+        app, _, ozon, yandex = load_app()
+        app.prepare_offers_data = reader.prepare_offers_data
+        with self.assertRaises(ValueError):
+            app.start_exchange_stock(xlsx([("A", "5,84")]))
+        ozon.get_sku_from_ozon.assert_not_called()
+        yandex.get_sku_from_yandex.assert_not_called()
+        ozon.update_stocks.assert_not_called()
+        yandex.update_stocks_yandex.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

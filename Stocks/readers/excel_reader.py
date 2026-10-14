@@ -1,6 +1,7 @@
 import pandas as pd
 from numbers import Integral, Real
 import math
+from decimal import Decimal, InvalidOperation
 
 from Common.logger import get_logger
 logger = get_logger("Stocks")
@@ -24,6 +25,30 @@ def normalize_article(value) -> str:
     raise ValueError("артикул должен быть текстом или целым числом; проверьте формат ячейки")
 
 
+def normalize_quantity(value) -> int:
+    """Принимает только целые числовые значения, включая текст 4,000."""
+    if isinstance(value, bool):
+        raise ValueError("логическое значение вместо количества")
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return 0
+        text = text.replace(",", ".")
+    else:
+        if pd.isna(value):
+            return 0
+        text = str(value)
+    try:
+        number = Decimal(text)
+    except InvalidOperation as e:
+        raise ValueError("количество должно быть числом") from e
+    if not number.is_finite():
+        raise ValueError("количество должно быть конечным числом")
+    if number != number.to_integral_value():
+        raise ValueError("количество содержит ненулевую дробную часть")
+    return int(number)
+
+
 def prepare_offers_data(file_products) -> list[dict]:
     """
     Читает данные из основного файла XLS, выбирает количество товара и формирует список для обновления остатков.
@@ -37,7 +62,7 @@ def prepare_offers_data(file_products) -> list[dict]:
         # Не определяем числовой тип для всего столбца: это теряет ведущие нули.
         # NA, N/A, NULL и nan могут быть буквальными артикулами.
         df_products = pd.read_excel(
-            file_products, dtype={"Артикул": object}, keep_default_na=False,
+            file_products, dtype={"Артикул": object, "Количество": object}, keep_default_na=False,
             na_values={"Количество": [""]},
         )
 
@@ -61,7 +86,19 @@ def prepare_offers_data(file_products) -> list[dict]:
         df_products["Артикул"] = articles
         logger.info("Проверка артикулов завершена: строк=%s, нормализовано=%s",
                     len(articles), normalized_count)
-        df_products['Количество'] = df_products['Количество'].fillna(0).astype(int)
+        quantities = []
+        article_rows = {}
+        for excel_row, (article, value) in enumerate(zip(articles, df_products["Количество"]), start=2):
+            try:
+                quantities.append(normalize_quantity(value))
+            except ValueError as e:
+                raise ValueError(
+                    f"Некорректное количество в строке Excel {excel_row}: "
+                    f"артикул={article}, значение={value!r}; {e}. Обмен отменён."
+                ) from e
+            article_rows.setdefault(article, []).append(excel_row)
+        df_products["Количество"] = pd.Series(quantities, index=df_products.index, dtype=object)
+        logger.info("Проверка количества завершена: строк=%s", len(quantities))
 
         # Формируем список остатков (группируем по Артикулу для суммирования количества)
         logger.info("Формируем список остатков.")
@@ -73,6 +110,13 @@ def prepare_offers_data(file_products) -> list[dict]:
         for _, row in df_grouped.iterrows():
             offer_id = str(row["Артикул"])
             count = int(row["Количество"])
+            if count < 0:
+                logger.warning(
+                    "Отрицательный итоговый остаток: артикул=%s, строки Excel=%s, "
+                    "исходный итог=%s, заменён на 0",
+                    offer_id, article_rows[offer_id], count,
+                )
+                count = 0
 
             offers.append({
                 "offerId": offer_id,
