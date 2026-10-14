@@ -5,10 +5,15 @@ from Stocks.db_stocks.stocks_repository import StocksRepository
 from Common.file_utils import copy_file_with_timestamp
 from Common.settings import SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER
 from Common.logger import get_logger
+from Stocks.settings_app import settings_stocks
 from Stocks.settings_app.settings_stocks import ENABLE_OZON, ENABLE_YANDEX, ENABLE_PROMO_TIMER
+from Stocks.services.update_logging import log_update_result
+from Stocks.services.catalog_errors import CatalogLoadError
 
 logger = get_logger(__name__)
 repo = StocksRepository()
+# Настройки локальные и исключены из Git; сохраняем тестовый режим по умолчанию.
+DRY_RUN = getattr(settings_stocks, "DRY_RUN", True)
 
 
 def start_exchange_stock(file):
@@ -23,8 +28,22 @@ def start_exchange_stock(file):
 
     # --- 2. Получаем товары из маркетплейсов ---
     # Если маркет отключен — просто получаем пустой список
-    sku_ozon = get_sku_from_ozon() if ENABLE_OZON else []
-    sku_yandex = get_sku_from_yandex() if ENABLE_YANDEX else []
+    sku_ozon = []
+    ozon_catalog_error = None
+    if ENABLE_OZON:
+        try:
+            sku_ozon = get_sku_from_ozon()
+        except CatalogLoadError as e:
+            ozon_catalog_error = e
+            logger.error("Ozon: отправка остатков и промо отменены из-за CATALOG_LOAD_FAILED: %s", e)
+    sku_yandex = []
+    yandex_catalog_error = None
+    if ENABLE_YANDEX:
+        try:
+            sku_yandex = get_sku_from_yandex()
+        except CatalogLoadError as e:
+            yandex_catalog_error = e
+            logger.error("Яндекс: отправка остатков отменена из-за CATALOG_LOAD_FAILED: %s", e)
 
     # --- 3. Создаём индексы для быстрого поиска ---
     # Это сильно ускоряет работу при больших объемах
@@ -45,7 +64,7 @@ def start_exchange_stock(file):
     # =========================
     # --- 4a. OZON логика ---
     # =========================
-    if ENABLE_OZON:
+    if ENABLE_OZON and ozon_catalog_error is None:
 
         # Товары, которые есть и в прайсе, и в Ozon → обновляем остатки
         for offer_id, offer in offers_index.items():
@@ -69,7 +88,7 @@ def start_exchange_stock(file):
     # =========================
     # --- 4b. YANDEX логика ---
     # =========================
-    if ENABLE_YANDEX:
+    if ENABLE_YANDEX and yandex_catalog_error is None:
 
         # Товары, которые есть и в прайсе, и в Yandex → обновляем остатки
         for offer_id, offer in offers_index.items():
@@ -89,55 +108,62 @@ def start_exchange_stock(file):
 
     # --- 5. Логирование ---
     logger.info(f"Всего товаров из прайса: {len(offers_index)}")
-    logger.info(f"Всего товаров в Ozon: {len(ozon_index)} | Товаров к обновлению: {len(stocks_to_update)}")
-    logger.info(f"Всего товаров в Yandex: {len(yandex_index)} | Товаров к обновлению: {len(stocks_to_update_yandex)}")
+    if ozon_catalog_error is None:
+        logger.info(f"Всего товаров в Ozon: {len(ozon_index)} | Товаров к обновлению: {len(stocks_to_update)}")
+    else:
+        logger.error("Ozon: полный каталог неизвестен, получено до сбоя=%s, отправки не будет",
+                     ozon_catalog_error.loaded_count)
+    if yandex_catalog_error is None:
+        logger.info(f"Всего товаров в Yandex: {len(yandex_index)} | Товаров к обновлению: {len(stocks_to_update_yandex)}")
+    else:
+        logger.error("Яндекс: полный каталог неизвестен, получено до сбоя=%s, отправки не будет",
+                     yandex_catalog_error.loaded_count)
 
-    # =========================
-    # --- 6. Отправка в OZON ---
-    # =========================
-    if ENABLE_OZON:
-        log_id = repo.create_stock_update_session(
-            total_file=len(offers_index),
-            total_ozon=len(ozon_index),
-            marketplace="OZON"
-        )
+    # Каждый маркетплейс завершает свою сессию независимо от другого.
+    statuses = {}
+    marketplaces = [
+        ("OZON", "Ozon", ENABLE_OZON, ozon_catalog_error, ozon_index, stocks_to_update,
+         repo.save_stock_history_bulk, update_stocks),
+        ("YANDEX", "Яндекс", ENABLE_YANDEX, yandex_catalog_error, yandex_index, stocks_to_update_yandex,
+         repo.save_yandex_stock_history_bulk, update_stocks_yandex),
+    ]
+    for marketplace, name, enabled, catalog_error, index, stocks, save_history, send in marketplaces:
+        if not enabled:
+            statuses[marketplace] = "DISABLED"
+            continue
+        log_id = None
         try:
-            # Сохраняем историю перед отправкой
-            repo.save_stock_history_bulk(log_id, stocks_to_update)
+            log_id = repo.create_stock_update_session(
+                total_file=len(offers_index),
+                total_ozon=None if catalog_error else len(index), marketplace=marketplace,
+            )
+            if catalog_error is not None:
+                statuses[marketplace] = "ERROR: CATALOG_LOAD_FAILED"
+                repo.finish_stock_update_session(log_id, 0, statuses[marketplace])
+                logger.error("Сессия остатков %s: session_id=%s, status=%s, отправка отменена",
+                             name, log_id, statuses[marketplace])
+                continue
 
-            # Отправляем остатки
-            response = update_stocks(stocks_to_update)
-            #logger.info(response)
-
-            # Завершаем сессию
-            repo.finish_stock_update_session(log_id, len(stocks_to_update), "SUCCESS")
+            save_history(log_id, stocks)
+            if DRY_RUN:
+                statuses[marketplace] = "DRY_RUN"
+                logger.info("%s: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
+                            name, log_id, len(stocks))
+                repo.finish_stock_update_session(log_id, 0, "DRY_RUN")
+            else:
+                result = send(stocks)
+                statuses[marketplace] = result.status
+                log_update_result(logger, f"Сессия остатков {name}", result, log_id)
+                repo.finish_stock_update_session(log_id, result.updated, result.status)
         except Exception as e:
-            logger.error(f"Ошибка Ozon: {e}")
-            repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
+            statuses[marketplace] = f"ERROR: {str(e)[:100]}"
+            logger.exception("Ошибка сессии остатков %s: session_id=%s", name, log_id)
+            if log_id is not None:
+                repo.finish_stock_update_session(log_id, 0, statuses[marketplace])
 
-    # =========================
-    # --- 7. Отправка в YANDEX ---
-    # =========================
-    if ENABLE_YANDEX:
-        log_id = repo.create_stock_update_session(
-            total_file=len(offers_index),
-            total_ozon=len(yandex_index),
-            marketplace="YANDEX"
-        )
-        try:
-            # Сохраняем историю
-            repo.save_yandex_stock_history_bulk(log_id, stocks_to_update_yandex)
-
-            # Отправляем остатки
-            update_stocks_yandex(stocks_to_update_yandex)
-
-            # Завершаем сессию
-            repo.finish_stock_update_session(log_id, len(stocks_to_update_yandex), "SUCCESS")
-        except Exception as e:
-            logger.error(f"Ошибка Yandex: {e}")
-            repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
-
-    logger.info("=== Завершено ===")
+    log = logger.warning if any(status.startswith("ERROR") or status == "PARTIAL"
+                                for status in statuses.values()) else logger.info
+    log("=== Обмен завершен: Ozon=%s, Яндекс=%s ===", statuses["OZON"], statuses["YANDEX"])
     return stocks_to_update
 
 
@@ -167,13 +193,16 @@ def start_update_promo_timer(data):
         # Сохраняем историю
         repo.save_promo_timer_history_bulk(log_id, product_ids)
 
-        # Обновляем таймер в Ozon
-        update_promo_timer(product_ids, batch_size=500)
-
-        # Успешное завершение
-        repo.finish_promo_timer_session(log_id, "SUCCESS")
+        if DRY_RUN:
+            logger.info("Промо Ozon: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
+                        log_id, len(product_ids))
+            repo.finish_promo_timer_session(log_id, "DRY_RUN")
+        else:
+            result = update_promo_timer(product_ids, batch_size=500)
+            log_update_result(logger, "Сессия промо Ozon", result, log_id)
+            repo.finish_promo_timer_session(log_id, result.status)
     except Exception as e:
-        logger.error(f"Ошибка промо: {e}")
+        logger.exception("Ошибка сессии промо Ozon: session_id=%s", log_id)
         repo.finish_promo_timer_session(log_id, f"ERROR: {str(e)[:100]}")
 
     logger.info("=== Промо завершено ===")
