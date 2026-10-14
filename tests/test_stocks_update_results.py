@@ -50,6 +50,19 @@ def ozon_item(offer_id, updated=True, errors=None, warehouse="test"):
 
 
 class StockApiResultTests(unittest.TestCase):
+    def test_yandex_uses_versioned_stock_endpoint_and_preserves_payload(self):
+        api, send = load_api("Stocks/api/yandex_api.py", [{"status": "OK"}])
+        offers = [{"sku": "A", "items": [{"count": 5}]}]
+        result = api.update_stocks_yandex(offers)
+        send.assert_called_once_with(
+            url="https://api.partner.market.yandex.ru/v2/campaigns/test/offers/stocks",
+            method="PUT",
+            headers={"Api-Key": "test", "Accept": "application/json",
+                     "X-Market-Integration": "OrderGuard_V2"},
+            body={"skus": offers},
+        )
+        self.assertEqual(result, UpdateResult(updated=1))
+
     def test_ozon_full_confirmation_is_successful(self):
         api, _ = load_api("Stocks/api/ozon_api.py", [{"result": [ozon_item("A")]}])
         result = api.update_stocks([{"offer_id": "A", "stock": 5}])

@@ -19,7 +19,7 @@ def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
     :param offer_ids: Список идентификаторов товаров для фильтрации (необязательно).
     :return: Список всех товаров.
     """
-    url = f"https://api.partner.market.yandex.ru/businesses/{YANDEX_BUSINESS_ID}/offer-mappings"
+    url = f"https://api.partner.market.yandex.ru/v2/businesses/{YANDEX_BUSINESS_ID}/offer-mappings"
     headers = {
         'Api-Key': f'{YANDEX_API_TOKEN}',
         'Accept': 'application/json',
@@ -92,7 +92,7 @@ def update_stocks_yandex(offers: list[dict]) -> UpdateResult:
     :param offers: список товаров [{"sku": str, "items": [{"count": int}]}]
     :return: количество подтвержденных обновлений и ошибок
     """
-    url = f"https://api.partner.market.yandex.ru/campaigns/{YANDEX_CAMPAIGN_ID}/offers/stocks"
+    url = f"https://api.partner.market.yandex.ru/v2/campaigns/{YANDEX_CAMPAIGN_ID}/offers/stocks"
     headers = {
         'Api-Key': YANDEX_API_TOKEN,
         'Accept': 'application/json',

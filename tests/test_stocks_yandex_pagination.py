@@ -48,6 +48,9 @@ class YandexPaginationTests(unittest.TestCase):
         observed_params = []
 
         def post(url, **kwargs):
+            self.assertEqual(url, "https://api.partner.market.yandex.ru/v2/businesses/test-business/offer-mappings")
+            self.assertEqual(kwargs["method"], "POST")
+            self.assertEqual(kwargs["body"], {})
             params = dict(kwargs["params"])
             observed_params.append(params)
             # Behave like an API that ignores unknown query parameters.
