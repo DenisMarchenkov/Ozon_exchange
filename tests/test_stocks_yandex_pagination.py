@@ -4,13 +4,13 @@ import unittest
 from pathlib import Path
 from types import ModuleType
 from unittest.mock import Mock, patch
+from Stocks.services.catalog_errors import CatalogLoadError
 
 
 def load_yandex_api(post):
     """Load the real API module without credentials or network dependencies."""
     dependencies = {
-        "requests": {"post": post},
-        "Common.http_utils": {"send_request_with_retries": Mock()},
+        "Common.http_utils": {"send_request_with_retries": post},
         "Common.logger": {"get_logger": logging.getLogger},
         "Common.settings": {
             "YANDEX_BUSINESS_ID": "test-business",
@@ -34,15 +34,13 @@ def load_yandex_api(post):
 
 
 def page(offer_id, next_token=None):
-    return Mock(
-        status_code=200,
-        json=Mock(return_value={
+    return {
+            "status": "OK",
             "result": {
                 "offerMappings": [{"offer": {"offerId": offer_id}}],
                 "paging": {"nextPageToken": next_token},
             }
-        }),
-    )
+    }
 
 
 class YandexPaginationTests(unittest.TestCase):
@@ -82,6 +80,44 @@ class YandexPaginationTests(unittest.TestCase):
         self.assertEqual(post.call_args.kwargs["params"], {
             "limit": 20, "pageToken": "start-page",
         })
+
+    def test_failed_second_page_raises_instead_of_returning_partial_catalog(self):
+        send = Mock(side_effect=[page("A", "second-page"), None])
+        api = load_yandex_api(send)
+        with self.assertLogs(api.logger, level="ERROR") as logs:
+            with self.assertRaises(CatalogLoadError) as raised:
+                api.get_sku_from_yandex()
+        self.assertEqual(raised.exception.page_number, 2)
+        self.assertEqual(raised.exception.loaded_count, 1)
+        self.assertIn("CATALOG_LOAD_FAILED", "\n".join(logs.output))
+        self.assertEqual(send.call_count, 2)
+
+    def test_invalid_page_is_not_accepted(self):
+        for invalid in [
+            {}, {"status": "ERROR"},
+            {"status": "OK", "result": {}},
+            {"status": "OK", "result": {"offerMappings": [], "paging": None}},
+            {"status": "OK", "result": {"offerMappings": [{}], "paging": {}}},
+            {"status": "OK", "result": {"offerMappings": [], "paging": {"nextPageToken": 123}}},
+        ]:
+            with self.subTest(invalid=invalid):
+                api = load_yandex_api(Mock(side_effect=[page("A", "next"), invalid]))
+                with self.assertRaises(CatalogLoadError) as raised:
+                    api.get_sku_from_yandex()
+                self.assertEqual(raised.exception.loaded_count, 1)
+
+    def test_repeated_token_stops_pagination(self):
+        send = Mock(side_effect=[page("A", "next"), page("B", "next")])
+        api = load_yandex_api(send)
+        with self.assertRaises(CatalogLoadError):
+            api.get_sku_from_yandex()
+        self.assertEqual(send.call_count, 2)
+
+    def test_empty_catalog_is_valid(self):
+        api = load_yandex_api(Mock(return_value={
+            "status": "OK", "result": {"offerMappings": [], "paging": {}},
+        }))
+        self.assertEqual(api.get_sku_from_yandex(), [])
 
 
 if __name__ == "__main__":

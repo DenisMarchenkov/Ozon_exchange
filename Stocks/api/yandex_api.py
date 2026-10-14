@@ -1,5 +1,4 @@
 import time
-import requests
 
 from Common.http_utils import send_request_with_retries
 from Common.logger import get_logger
@@ -7,6 +6,7 @@ from Common.settings import YANDEX_BUSINESS_ID, YANDEX_API_TOKEN, YANDEX_CAMPAIG
 from Stocks.services.stock_processor import prepare_batches_yandex
 from Stocks.services.update_result import UpdateResult, yandex_batch_succeeded
 from Stocks.services.update_logging import log_update_result, response_reason
+from Stocks.services.catalog_errors import CatalogLoadError
 
 logger = get_logger(__name__)
 
@@ -38,33 +38,49 @@ def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
         body["offerIds"] = offer_ids
 
     all_offers = []
+    page_number = 1
+    seen_tokens = {page_token} if page_token else set()
+    logger.info("Яндекс: начало загрузки каталога, размер страницы=%s", limit)
     while True:
         try:
-            response = requests.post(url, headers=headers, params=params, json=body, timeout=(5,30))
+            logger.info("Яндекс: запрос страницы=%s, уже загружено=%s", page_number, len(all_offers))
+            data = send_request_with_retries(
+                url=url, method="POST", headers=headers, body=body, params=dict(params),
+            )
+            if not isinstance(data, dict) or data.get("status") != "OK" or data.get("errors"):
+                raise ValueError(response_reason(data, "status=OK без errors"))
+            result = data.get("result")
+            if not isinstance(result, dict):
+                raise ValueError("некорректный result каталога")
+            offers = result.get("offerMappings")
+            paging = result.get("paging")
+            if not isinstance(offers, list) or not isinstance(paging, dict):
+                raise ValueError("отсутствуют или некорректны offerMappings/paging")
+            for item in offers:
+                offer = item.get("offer") if isinstance(item, dict) else None
+                if not isinstance(offer, dict) or not isinstance(offer.get("offerId"), str) or not offer["offerId"]:
+                    raise ValueError("товар каталога не содержит строковый offerId")
 
-            # Проверяем статус ответа
-            if response.status_code != 200:
-                logger.warning(f"Ошибка при запросе: {response.status_code}")
-                break
+            next_page_token = paging.get("nextPageToken")
+            if next_page_token is not None and not isinstance(next_page_token, str):
+                raise ValueError("некорректный nextPageToken")
+            if next_page_token and next_page_token in seen_tokens:
+                raise ValueError("повторяющийся токен страницы; загрузка остановлена")
 
-            data = response.json()
-
-            # Добавляем товары из текущего ответа в общий список
-            all_offers.extend(data['result']['offerMappings'])
-
-            # Получаем токен следующей страницы
-            next_page_token = data['result']['paging'].get('nextPageToken')
-
-            # Если токена нет — больше страниц нет, выходим из цикла
+            all_offers.extend(offers)
+            logger.info("Яндекс: страница=%s загружена, получено=%s, всего=%s",
+                        page_number, len(offers), len(all_offers))
             if not next_page_token:
+                logger.info("Яндекс: каталог загружен полностью, страниц=%s, товаров=%s",
+                            page_number, len(all_offers))
                 break
-
-            # Обновляем page_token для следующего запроса
+            seen_tokens.add(next_page_token)
             params['pageToken'] = next_page_token
-
+            page_number += 1
         except Exception as e:
-            logger.error(f"Ошибка при получении списка товаров: {e}")
-            break
+            error = CatalogLoadError(page_number, len(all_offers), str(e))
+            logger.error("Яндекс: CATALOG_LOAD_FAILED, каталог не загружен полностью: %s", error)
+            raise error from e
 
     return all_offers
 

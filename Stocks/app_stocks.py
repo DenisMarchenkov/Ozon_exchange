@@ -8,6 +8,7 @@ from Common.logger import get_logger
 from Stocks.settings_app import settings_stocks
 from Stocks.settings_app.settings_stocks import ENABLE_OZON, ENABLE_YANDEX, ENABLE_PROMO_TIMER
 from Stocks.services.update_logging import log_update_result
+from Stocks.services.catalog_errors import CatalogLoadError
 
 logger = get_logger(__name__)
 repo = StocksRepository()
@@ -28,7 +29,14 @@ def start_exchange_stock(file):
     # --- 2. Получаем товары из маркетплейсов ---
     # Если маркет отключен — просто получаем пустой список
     sku_ozon = get_sku_from_ozon() if ENABLE_OZON else []
-    sku_yandex = get_sku_from_yandex() if ENABLE_YANDEX else []
+    sku_yandex = []
+    yandex_catalog_error = None
+    if ENABLE_YANDEX:
+        try:
+            sku_yandex = get_sku_from_yandex()
+        except CatalogLoadError as e:
+            yandex_catalog_error = e
+            logger.error("Яндекс: отправка остатков отменена из-за CATALOG_LOAD_FAILED: %s", e)
 
     # --- 3. Создаём индексы для быстрого поиска ---
     # Это сильно ускоряет работу при больших объемах
@@ -73,7 +81,7 @@ def start_exchange_stock(file):
     # =========================
     # --- 4b. YANDEX логика ---
     # =========================
-    if ENABLE_YANDEX:
+    if ENABLE_YANDEX and yandex_catalog_error is None:
 
         # Товары, которые есть и в прайсе, и в Yandex → обновляем остатки
         for offer_id, offer in offers_index.items():
@@ -94,7 +102,11 @@ def start_exchange_stock(file):
     # --- 5. Логирование ---
     logger.info(f"Всего товаров из прайса: {len(offers_index)}")
     logger.info(f"Всего товаров в Ozon: {len(ozon_index)} | Товаров к обновлению: {len(stocks_to_update)}")
-    logger.info(f"Всего товаров в Yandex: {len(yandex_index)} | Товаров к обновлению: {len(stocks_to_update_yandex)}")
+    if yandex_catalog_error is None:
+        logger.info(f"Всего товаров в Yandex: {len(yandex_index)} | Товаров к обновлению: {len(stocks_to_update_yandex)}")
+    else:
+        logger.error("Яндекс: полный каталог неизвестен, получено до сбоя=%s, отправки не будет",
+                     yandex_catalog_error.loaded_count)
 
     # =========================
     # --- 6. Отправка в OZON ---
@@ -127,10 +139,16 @@ def start_exchange_stock(file):
     if ENABLE_YANDEX:
         log_id = repo.create_stock_update_session(
             total_file=len(offers_index),
-            total_ozon=len(yandex_index),
+            total_ozon=None if yandex_catalog_error else len(yandex_index),
             marketplace="YANDEX"
         )
         try:
+            if yandex_catalog_error is not None:
+                repo.finish_stock_update_session(log_id, 0, "ERROR: CATALOG_LOAD_FAILED")
+                logger.error("Сессия остатков Яндекс: session_id=%s, status=ERROR: CATALOG_LOAD_FAILED, "
+                             "подтверждено=0, отправка отменена", log_id)
+                logger.warning("=== Обмен завершен с ошибкой загрузки каталога Яндекс ===")
+                return stocks_to_update
             # Сохраняем историю
             repo.save_yandex_stock_history_bulk(log_id, stocks_to_update_yandex)
 

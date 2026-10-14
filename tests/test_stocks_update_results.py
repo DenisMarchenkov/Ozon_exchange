@@ -6,6 +6,7 @@ from types import ModuleType
 from unittest.mock import Mock, patch
 
 from Stocks.services.update_result import UpdateResult
+from Stocks.services.catalog_errors import CatalogLoadError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -157,6 +158,21 @@ def load_app(dry_run=False):
 
 
 class StockSessionResultTests(unittest.TestCase):
+    def test_failed_yandex_catalog_skips_sending_and_keeps_ozon_working(self):
+        for dry_run in [False, True]:
+            with self.subTest(dry_run=dry_run):
+                app, repo, ozon, yandex = load_app(dry_run=dry_run)
+                yandex.get_sku_from_yandex.side_effect = CatalogLoadError(2, 20, "timeout")
+                ozon.update_stocks.return_value = UpdateResult(updated=1)
+                app.start_exchange_stock("test")
+                yandex.update_stocks_yandex.assert_not_called()
+                repo.save_yandex_stock_history_bulk.assert_not_called()
+                if not dry_run:
+                    ozon.update_stocks.assert_called_once()
+                self.assertEqual(repo.finish_stock_update_session.call_args_list[-1].args,
+                                 (2, 0, "ERROR: CATALOG_LOAD_FAILED"))
+                self.assertIsNone(repo.create_stock_update_session.call_args.kwargs["total_ozon"])
+
     def test_api_failures_are_not_logged_as_success(self):
         app, repo, _, _ = load_app()
         app.start_exchange_stock("test")

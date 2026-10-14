@@ -43,7 +43,8 @@ def send_request_with_retries(
     headers: Dict[str, str],
     body: Optional[Dict[str, Any]] = None,
     max_attempts: int = 3,
-    accepted_status_codes: Optional[list[int]] = None
+    accepted_status_codes: Optional[list[int]] = None,
+    params: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
 
     attempt = 0
@@ -103,6 +104,7 @@ def send_request_with_retries(
             else:
                 response: Union[Response, FakeResponse] = requests.request(
                     method=method, url=url, headers=headers, json=body, timeout=(5, 30),
+                    params=params,
                 )
 
             if accepted_status_codes is None:
