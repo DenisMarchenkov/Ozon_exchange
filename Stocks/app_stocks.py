@@ -5,10 +5,14 @@ from Stocks.db_stocks.stocks_repository import StocksRepository
 from Common.file_utils import copy_file_with_timestamp
 from Common.settings import SUPPLIER_SOURCE_FILE, SUPPLIER_PRICE_FOLDER
 from Common.logger import get_logger
+from Stocks.settings_app import settings_stocks
 from Stocks.settings_app.settings_stocks import ENABLE_OZON, ENABLE_YANDEX, ENABLE_PROMO_TIMER
+from Stocks.services.update_logging import log_update_result
 
 logger = get_logger(__name__)
 repo = StocksRepository()
+# Настройки локальные и исключены из Git; сохраняем тестовый режим по умолчанию.
+DRY_RUN = getattr(settings_stocks, "DRY_RUN", True)
 
 
 def start_exchange_stock(file):
@@ -105,14 +109,16 @@ def start_exchange_stock(file):
             # Сохраняем историю перед отправкой
             repo.save_stock_history_bulk(log_id, stocks_to_update)
 
-            # Отправляем остатки
-            #response = update_stocks(stocks_to_update)
-            #logger.info(response)
-
-            # Завершаем сессию
-            repo.finish_stock_update_session(log_id, len(stocks_to_update), "SUCCESS")
+            if DRY_RUN:
+                logger.info("Ozon: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
+                            log_id, len(stocks_to_update))
+                repo.finish_stock_update_session(log_id, 0, "DRY_RUN")
+            else:
+                result = update_stocks(stocks_to_update)
+                log_update_result(logger, "Сессия остатков Ozon", result, log_id)
+                repo.finish_stock_update_session(log_id, result.updated, result.status)
         except Exception as e:
-            logger.error(f"Ошибка Ozon: {e}")
+            logger.exception("Ошибка сессии остатков Ozon: session_id=%s", log_id)
             repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
 
     # =========================
@@ -128,13 +134,16 @@ def start_exchange_stock(file):
             # Сохраняем историю
             repo.save_yandex_stock_history_bulk(log_id, stocks_to_update_yandex)
 
-            # Отправляем остатки
-            #update_stocks_yandex(stocks_to_update_yandex)
-
-            # Завершаем сессию
-            repo.finish_stock_update_session(log_id, len(stocks_to_update_yandex), "SUCCESS")
+            if DRY_RUN:
+                logger.info("Яндекс: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
+                            log_id, len(stocks_to_update_yandex))
+                repo.finish_stock_update_session(log_id, 0, "DRY_RUN")
+            else:
+                result = update_stocks_yandex(stocks_to_update_yandex)
+                log_update_result(logger, "Сессия остатков Яндекс", result, log_id)
+                repo.finish_stock_update_session(log_id, result.updated, result.status)
         except Exception as e:
-            logger.error(f"Ошибка Yandex: {e}")
+            logger.exception("Ошибка сессии остатков Яндекс: session_id=%s", log_id)
             repo.finish_stock_update_session(log_id, 0, f"ERROR: {str(e)[:100]}")
 
     logger.info("=== Завершено ===")
@@ -167,13 +176,16 @@ def start_update_promo_timer(data):
         # Сохраняем историю
         repo.save_promo_timer_history_bulk(log_id, product_ids)
 
-        # Обновляем таймер в Ozon
-        update_promo_timer(product_ids, batch_size=500)
-
-        # Успешное завершение
-        repo.finish_promo_timer_session(log_id, "SUCCESS")
+        if DRY_RUN:
+            logger.info("Промо Ozon: status=DRY_RUN, session_id=%s, подготовлено=%s, отправка отключена",
+                        log_id, len(product_ids))
+            repo.finish_promo_timer_session(log_id, "DRY_RUN")
+        else:
+            result = update_promo_timer(product_ids, batch_size=500)
+            log_update_result(logger, "Сессия промо Ozon", result, log_id)
+            repo.finish_promo_timer_session(log_id, result.status)
     except Exception as e:
-        logger.error(f"Ошибка промо: {e}")
+        logger.exception("Ошибка сессии промо Ozon: session_id=%s", log_id)
         repo.finish_promo_timer_session(log_id, f"ERROR: {str(e)[:100]}")
 
     logger.info("=== Промо завершено ===")

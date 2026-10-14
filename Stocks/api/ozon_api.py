@@ -2,16 +2,18 @@ import time
 
 from typing import Optional, Dict, Any
 from Stocks.services.stock_processor import prepare_batches
+from Stocks.services.update_result import UpdateResult, confirmed_ozon_stocks, promo_batch_succeeded
+from Stocks.services.update_logging import log_ozon_failures, log_update_result, response_reason
 from Common.http_utils import send_request_with_retries
 from Common.settings import CLIENT_ID, API_TOKEN
 from Common.logger import get_logger
 logger = get_logger(__name__)
 
-def update_stocks(offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
+def update_stocks(offers: list[dict]) -> UpdateResult:
     """
     Обновляет остатки на маркетплейс Ozon партиями.
-    :param offers: список товаров [{"offerId": str, "qua": int}, ...]
-    :return: список ответов API по партиям
+    :param offers: список товаров [{"offer_id": str, "stock": int}, ...]
+    :return: количество подтвержденных обновлений и ошибок
     """
     url = "https://api-seller.ozon.ru/v2/products/stocks"
     headers = {
@@ -20,24 +22,30 @@ def update_stocks(offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
         'Client-Id': CLIENT_ID
     }
 
-    responses = []
+    result = UpdateResult()
     batches = prepare_batches(offers)
 
     logger.info(f"Начинаем обновление остатков: {len(offers)} товаров ({len(batches)} партий)")
 
     for idx, batch in enumerate(batches, start=1):
-        response = send_request_with_retries(url=url, method="POST", headers=headers, body=batch)
+        response = None
+        try:
+            response = send_request_with_retries(url=url, method="POST", headers=headers, body=batch)
+            updated = confirmed_ozon_stocks(batch, response)
+        except Exception:
+            logger.exception("Ошибка при обновлении партии %s/%s", idx, len(batches))
+            updated = 0
 
-        if response:
-            logger.info(f"Партия {idx}/{len(batches)} успешно обновлена")
-        else:
-            logger.error(f"Ошибка при обновлении партии {idx}/{len(batches)}")
-
-        responses.append(response)
+        failed = len(batch["stocks"]) - updated
+        result.updated += updated
+        result.failed += failed
+        logger.info("Партия %s/%s: подтверждено %s, не подтверждено %s", idx, len(batches), updated, failed)
+        if failed:
+            log_ozon_failures(logger, batch, response, idx)
         time.sleep(1)  # задержка между партиями
 
-    logger.info("Обновление остатков завершено")
-    return responses
+    log_update_result(logger, "Обновление остатков Ozon", result)
+    return result
 
 
 def get_warehouse_id(api_token: str, client_id: str) -> Optional[Dict[str, Any]]:
@@ -96,7 +104,7 @@ def get_sku_from_ozon():
     return all_items
 
 
-def update_promo_timer(prod_ids, batch_size=100):
+def update_promo_timer(prod_ids, batch_size=100) -> UpdateResult:
     """
     Запускает обновление таймера промо-акций (актуальности цены) для товаров Ozon партиями.
     """
@@ -109,7 +117,10 @@ def update_promo_timer(prod_ids, batch_size=100):
         "Content-Type": "application/json"
     }
 
-    responses = []
+    if batch_size <= 0:
+        raise ValueError("batch_size должен быть положительным")
+    result = UpdateResult()
+    logger.info("Обновление промо Ozon: товаров=%s, размер партии=%s", len(prod_ids), batch_size)
 
     # разбиваем на партии
     for i in range(0, len(prod_ids), batch_size):
@@ -119,20 +130,30 @@ def update_promo_timer(prod_ids, batch_size=100):
             "product_ids": batch
         }
 
-        response = send_request_with_retries(
-            url=url,
-            headers=headers,
-            method="POST",
-            body=body
-        )
+        response = None
+        try:
+            response = send_request_with_retries(
+                url=url, headers=headers, method="POST", body=body
+            )
+            success = promo_batch_succeeded(response)
+        except Exception:
+            logger.exception("Ошибка обновления промо, партия %s", i // batch_size + 1)
+            success = False
 
-        responses.append(response)
-
-        logger.info(f"Отправлена партия {i//batch_size + 1}, товаров: {len(batch)}")
+        if success:
+            result.updated += len(batch)
+            logger.info("Промо Ozon: партия %s, подтверждено %s товаров", i // batch_size + 1, len(batch))
+        else:
+            result.failed += len(batch)
+            logger.error(
+                "Промо Ozon: партия %s, product_ids=%s; причина: %s",
+                i // batch_size + 1, batch, response_reason(response, "result=true"),
+            )
 
         time.sleep(1)  # чтобы не ловить rate limit
 
-    return responses
+    log_update_result(logger, "Обновление промо Ozon", result)
+    return result
 
 
 def get_marked_products(

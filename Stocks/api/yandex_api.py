@@ -1,12 +1,12 @@
 import time
 import requests
 
-from typing import Optional, Dict, Any
-
 from Common.http_utils import send_request_with_retries
 from Common.logger import get_logger
 from Common.settings import YANDEX_BUSINESS_ID, YANDEX_API_TOKEN, YANDEX_CAMPAIGN_ID
 from Stocks.services.stock_processor import prepare_batches_yandex
+from Stocks.services.update_result import UpdateResult, yandex_batch_succeeded
+from Stocks.services.update_logging import log_update_result, response_reason
 
 logger = get_logger(__name__)
 
@@ -70,11 +70,11 @@ def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
 
 
 
-def update_stocks_yandex(offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
+def update_stocks_yandex(offers: list[dict]) -> UpdateResult:
     """
-    Обновляет остатки на маркетплейс Ozon партиями.
-    :param offers: список товаров [{"offerId": str, "qua": int}, ...]
-    :return: список ответов API по партиям
+    Обновляет остатки на маркетплейсе Яндекс партиями.
+    :param offers: список товаров [{"sku": str, "items": [{"count": int}]}]
+    :return: количество подтвержденных обновлений и ошибок
     """
     url = f"https://api.partner.market.yandex.ru/campaigns/{YANDEX_CAMPAIGN_ID}/offers/stocks"
     headers = {
@@ -83,22 +83,33 @@ def update_stocks_yandex(offers: list[dict]) -> list[Optional[Dict[str, Any]]]:
         'X-Market-Integration': 'OrderGuard_V2'
     }
 
-    responses = []
+    result = UpdateResult()
     batches = prepare_batches_yandex(offers)
 
     logger.info(f"Начинаем обновление остатков: {len(offers)} товаров ({len(batches)} партий)")
 
     for idx, batch in enumerate(batches, start=1):
-        response = send_request_with_retries(url=url, method="PUT", headers=headers, body=batch)
+        response = None
+        try:
+            response = send_request_with_retries(url=url, method="PUT", headers=headers, body=batch)
+            success = yandex_batch_succeeded(response)
+        except Exception:
+            logger.exception("Ошибка при обновлении партии %s/%s", idx, len(batches))
+            success = False
 
-        if response:
-            logger.info(f"Партия {idx}/{len(batches)} успешно обновлена")
+        if success:
+            result.updated += len(batch["skus"])
+            logger.info("Партия %s/%s успешно обновлена", idx, len(batches))
         else:
-            logger.error(f"Ошибка при обновлении партии {idx}/{len(batches)}")
-
-        responses.append(response)
+            result.failed += len(batch["skus"])
+            logger.error(
+                "Яндекс: партия %s/%s, не подтверждено %s товаров, skus=%s; причина: %s",
+                idx, len(batches), len(batch["skus"]),
+                [item["sku"] for item in batch["skus"]],
+                response_reason(response, "status=OK без errors"),
+            )
         time.sleep(1)  # задержка между партиями
 
-    logger.info("Обновление остатков завершено")
-    return responses
+    log_update_result(logger, "Обновление остатков Яндекс", result)
+    return result
 
