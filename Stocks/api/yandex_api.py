@@ -31,7 +31,7 @@ def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
     }
 
     if page_token:
-        params["page_token"] = page_token
+        params["pageToken"] = page_token
 
     body = {}
     if offer_ids:
@@ -40,7 +40,7 @@ def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
     all_offers = []
     while True:
         try:
-            response = requests.post(url, headers=headers, params=params, json=body)
+            response = requests.post(url, headers=headers, params=params, json=body, timeout=(5,30))
 
             # Проверяем статус ответа
             if response.status_code != 200:
@@ -60,7 +60,7 @@ def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
                 break
 
             # Обновляем page_token для следующего запроса
-            params['page_token'] = next_page_token
+            params['pageToken'] = next_page_token
 
         except Exception as e:
             logger.error(f"Ошибка при получении списка товаров: {e}")

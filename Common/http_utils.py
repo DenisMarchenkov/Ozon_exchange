@@ -102,7 +102,7 @@ def send_request_with_retries(
                 # response: Union[Response, FakeResponse] = FakeResponse.not_found()
             else:
                 response: Union[Response, FakeResponse] = requests.request(
-                    method=method, url=url, headers=headers, json=body
+                    method=method, url=url, headers=headers, json=body, timeout=(5, 30),
                 )
 
             if accepted_status_codes is None:
