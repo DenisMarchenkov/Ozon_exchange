@@ -41,6 +41,24 @@ def load_http(responses):
 
 
 class HttpRetriesTests(unittest.TestCase):
+    def test_promo_accepts_empty_json_from_http_200(self):
+        from test_stocks_update_results import load_api
+        from Stocks.services.update_result import UpdateResult
+        http, request = load_http([response({})])
+        api, _ = load_api("Stocks/api/ozon_api.py", [])
+        api.send_request_with_retries = http.send_request_with_retries
+        self.assertEqual(api.update_promo_timer([1, 2]), UpdateResult(updated=2))
+        self.assertEqual(request.call_args.kwargs["url"],
+                         "https://api-seller.ozon.ru/v1/product/action/timer/update")
+
+    def test_promo_does_not_accept_empty_json_from_http_error(self):
+        from test_stocks_update_results import load_api
+        from Stocks.services.update_result import UpdateResult
+        http, _ = load_http([response({}, status=400)])
+        api, _ = load_api("Stocks/api/ozon_api.py", [])
+        api.send_request_with_retries = http.send_request_with_retries
+        self.assertEqual(api.update_promo_timer([1, 2]), UpdateResult(failed=2))
+
     def test_retries_same_params_after_network_error(self):
         http, request = load_http([RequestFailure("timeout"), response({"status": "OK"})])
         params = {"limit": 20, "pageToken": "next"}

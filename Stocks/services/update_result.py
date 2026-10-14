@@ -54,8 +54,6 @@ def yandex_batch_succeeded(response) -> bool:
 
 
 def promo_batch_succeeded(response) -> bool:
-    return (
-        isinstance(response, dict)
-        and response.get("result") is True
-        and not response.get("errors")
-    )
+    # V1ProductActionTimerUpdateResponse не содержит полей.
+    # Helper возвращает JSON только при HTTP 200; None означает сбой запроса.
+    return isinstance(response, dict) and response == {}

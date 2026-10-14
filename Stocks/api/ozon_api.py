@@ -167,12 +167,15 @@ def update_promo_timer(prod_ids, batch_size=100) -> UpdateResult:
 
         if success:
             result.updated += len(batch)
-            logger.info("Промо Ozon: партия %s, подтверждено %s товаров", i // batch_size + 1, len(batch))
+            logger.info("Промо Ozon: партия %s, API принял обновление %s товаров, ответ={}",
+                        i // batch_size + 1, len(batch))
         else:
             result.failed += len(batch)
             logger.error(
-                "Промо Ozon: партия %s, product_ids=%s; причина: %s",
-                i // batch_size + 1, batch, response_reason(response, "result=true"),
+                "Промо Ozon: партия %s, товаров=%s, product_ids=%s; причина: %s; ключи ответа=%s",
+                i // batch_size + 1, len(batch), batch[:10],
+                response_reason(response, "пустой JSON-объект {} после HTTP 200"),
+                list(response) if isinstance(response, dict) else None,
             )
 
         time.sleep(1)  # чтобы не ловить rate limit

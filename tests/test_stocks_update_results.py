@@ -128,15 +128,15 @@ class StockApiResultTests(unittest.TestCase):
                 send.assert_not_called()
 
     def test_promo_partial_update_and_failed_responses(self):
-        for failure in [None, {}, {"result": False}, {"errors": ["rejected"]},
-                        {"result": "test_ok"}, RuntimeError("request failed")]:
+        for failure in [None, {"result": True}, {"result": False}, {"errors": ["rejected"]},
+                        {"result": "test_ok"}, {"unexpected": True}, RuntimeError("request failed")]:
             with self.subTest(failure=failure):
-                api, _ = load_api("Stocks/api/ozon_api.py", [{"result": True}, failure])
+                api, _ = load_api("Stocks/api/ozon_api.py", [{}, failure])
                 result = api.update_promo_timer([1, 2, 3], batch_size=2)
                 self.assertEqual(result, UpdateResult(updated=2, failed=1))
 
     def test_promo_full_confirmation_is_successful(self):
-        api, _ = load_api("Stocks/api/ozon_api.py", [{"result": True}])
+        api, _ = load_api("Stocks/api/ozon_api.py", [{}])
         result = api.update_promo_timer([1, 2])
         self.assertEqual(result, UpdateResult(updated=2))
         self.assertEqual(result.status, "SUCCESS")
