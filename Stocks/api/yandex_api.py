@@ -10,7 +10,7 @@ from Stocks.services.catalog_errors import CatalogLoadError
 
 logger = get_logger(__name__)
 
-def get_sku_from_yandex(limit=20, page_token=None, offer_ids=None):
+def get_sku_from_yandex(limit=100, page_token=None, offer_ids=None):
     """
     Получает полный список товаров из кампании, обрабатывая все страницы.
 
